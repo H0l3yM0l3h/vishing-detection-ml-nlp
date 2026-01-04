@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 import joblib
 import numpy as np
+import tensorflow as tf  # ✅ added
 from tensorflow.keras.models import load_model
 
 # ===============================
@@ -12,13 +13,17 @@ MODELS_DIR = BASE_DIR / "models"
 
 @st.cache_resource
 def load_resources():
+    # keep this if your app uses it elsewhere
     vectorizer = joblib.load(MODELS_DIR / "vectorizer.pkl")
+
     models = {
         "SVM": joblib.load(MODELS_DIR / "svm_model.pkl"),
         "Logistic Regression": joblib.load(MODELS_DIR / "logistic_regression_model.pkl"),
         "Random Forest": joblib.load(MODELS_DIR / "rf_model.pkl"),
     }
-    nn_model = load_model(MODELS_DIR / "neural_network.h5")
+
+    # you can load .h5 or .keras, either is fine
+    nn_model = load_model(MODELS_DIR / "neural_network.keras")
     return vectorizer, models, nn_model
 
 vectorizer, models, nn_model = load_resources()
@@ -26,15 +31,29 @@ vectorizer, models, nn_model = load_resources()
 # ===============================
 # EXPLAINABILITY
 # ===============================
-def explain_prediction(model, vectorizer, X, top_n=5):
-    feature_names = vectorizer.get_feature_names_out()
-    coef = model.coef_[0]
-    indices = X.nonzero()[1]
+def explain_prediction(model, X, feature_names, top_n=5):
+    """
+    model: LR pipeline or Calibrated SVM
+    X: sparse vector from the matching tfidf
+    feature_names: from the matching tfidf
+    """
+    # --- get coef aligned with the model ---
+    if hasattr(model, "named_steps"):
+        # Logistic Regression pipeline
+        clf = model.named_steps["clf"]
+        coef = clf.coef_[0]
+    else:
+        # CalibratedClassifierCV (SVM)
+        base = model.calibrated_classifiers_[0].estimator
+        clf = base.named_steps["clf"]
+        coef = clf.coef_[0]
 
-    contributions = {
-        feature_names[i]: coef[i]
-        for i in indices
-    }
+    # --- only use indices that exist in both feature_names and coef ---
+    limit = min(len(feature_names), len(coef))
+    indices = X.nonzero()[1]
+    indices = [i for i in indices if i < limit]
+
+    contributions = {feature_names[i]: float(coef[i]) for i in indices}
 
     return sorted(
         contributions.items(),
@@ -62,7 +81,7 @@ def render_app():
     st.title("🎯 Vishing Detection Using ML & NLP")
 
     st.info(
-        "Models trained on **KorCCVi**. "
+        "Models trained on English Dataset. "
         "Other languages are for demonstration only."
     )
 
@@ -86,15 +105,16 @@ def render_app():
         # MODEL INFERENCE (FIXED)
         # ===============================
         if model_choice == "Neural Network":
-            X = vectorizer.transform([text])
-            probs = nn_model.predict(X.toarray(), verbose=0)
-            pred = np.argmax(probs)
-            confidence = float(np.max(probs))
-            label = "vishing" if pred == 1 else "safe"
+            # ✅ FIX: feed tf.string tensor, not numpy object/list
+            x_nn = tf.constant([text])  # shape (1,), dtype string
+            prob = float(nn_model.predict(x_nn, verbose=0).reshape(-1)[0])
+
+            label = "vishing" if prob >= 0.5 else "safe"
+            confidence = prob if label == "vishing" else 1.0 - prob
 
         else:
             model = models[model_choice]
-            label = model.predict([text])[0]  # ✅ RAW TEXT
+            label = model.predict([text])[0]
             confidence = (
                 float(np.max(model.predict_proba([text])))
                 if hasattr(model, "predict_proba")
@@ -118,7 +138,24 @@ def render_app():
         # EXPLANATION (LINEAR MODELS ONLY)
         # ===============================
         if model_choice in ["SVM", "Logistic Regression"] and not is_insufficient:
-            X = vectorizer.transform([text])
             st.subheader("🔍 Explanation")
-            for term, weight in explain_prediction(models[model_choice], vectorizer, X):
+
+            if model_choice == "Logistic Regression":
+                # ✅ use TF-IDF INSIDE LR pipeline
+                lr_model = models["Logistic Regression"]
+                tfidf = lr_model.named_steps["tfidf"]
+                X = tfidf.transform([text])
+                feature_names = tfidf.get_feature_names_out()
+                expl_model = lr_model
+
+            else:
+                # ✅ use TF-IDF INSIDE calibrated SVM pipeline
+                svm_model = models["SVM"]
+                base = svm_model.calibrated_classifiers_[0].estimator
+                tfidf = base.named_steps["tfidf"]
+                X = tfidf.transform([text])
+                feature_names = tfidf.get_feature_names_out()
+                expl_model = svm_model
+
+            for term, weight in explain_prediction(expl_model, X, feature_names, top_n=5):
                 st.write(f"- **{term}** ({weight:.3f})")
