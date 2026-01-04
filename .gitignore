@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Streamlit
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Models & data (do NOT push)
+models/*.pkl
+models/*.h5
+data/
+*.db
+
+# Jupyter
+.ipynb_checkpoints/
