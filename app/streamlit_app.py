@@ -2,7 +2,7 @@ import streamlit as st
 from pathlib import Path
 import joblib
 import numpy as np
-import tensorflow as tf  # ✅ added
+import tensorflow as tf 
 from tensorflow.keras.models import load_model
 
 # ===============================
@@ -78,7 +78,7 @@ def insufficient_evidence(text, confidence, min_words=5, min_conf=0.70):
 def render_app():
     st.set_page_config(page_title="Vishing Detection", layout="centered")
 
-    st.title("🎯 Vishing Detection Using ML & NLP")
+    st.title(" Vishing Detection Using ML & NLP")
 
     st.info(
         "Models trained on English Dataset. "
@@ -96,7 +96,7 @@ def render_app():
         placeholder="This is the bank security department..."
     )
 
-    if st.button("🔍 Analyze"):
+    if st.button(" Analyze"):
         if not text.strip():
             st.warning("Please enter a transcript.")
             return
