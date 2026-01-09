@@ -105,7 +105,7 @@ def render_app():
         # MODEL INFERENCE (FIXED)
         # ===============================
         if model_choice == "Neural Network":
-            # ✅ FIX: feed tf.string tensor, not numpy object/list
+            # FIX: feed tf.string tensor, not numpy object/list
             x_nn = tf.constant([text])  # shape (1,), dtype string
             prob = float(nn_model.predict(x_nn, verbose=0).reshape(-1)[0])
 
@@ -138,7 +138,7 @@ def render_app():
         # EXPLANATION (LINEAR MODELS ONLY)
         # ===============================
         if model_choice in ["SVM", "Logistic Regression"] and not is_insufficient:
-            st.subheader("🔍 Explanation")
+            st.subheader(" Explanation")
 
             if model_choice == "Logistic Regression":
                 # ✅ use TF-IDF INSIDE LR pipeline
