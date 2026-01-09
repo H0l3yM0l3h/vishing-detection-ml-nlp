@@ -17,7 +17,7 @@ if "user" not in st.session_state:
 # Login Page
 # -------------------------------------------------
 def login_page():
-    st.title("🔐 Login")
+    st.title(" Login")
 
     username = st.text_input(
         "Username",
@@ -49,7 +49,7 @@ def login_page():
 # Register Page
 # -------------------------------------------------
 def register_page():
-    st.title("📝 Register")
+    st.title(" Register")
 
     username = st.text_input(
         "New Username",
