@@ -13,9 +13,7 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Models & data (do NOT push)
-models/*.pkl
-models/*.h5
+# Models & data
 data/
 *.db
 
