@@ -21,3 +21,5 @@ data/
 
 # Jupyter
 .ipynb_checkpoints/
+
+app/supabase_schema.sql
