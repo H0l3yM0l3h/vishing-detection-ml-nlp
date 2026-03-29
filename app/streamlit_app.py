@@ -30,7 +30,7 @@ def load_resources():
         "Logistic Regression": joblib.load(MODELS_DIR / "logistic_regression_model.pkl"),
         "Random Forest":       joblib.load(MODELS_DIR / "rf_model.pkl"),
     }
-    nn_model = load_model(MODELS_DIR / "neural_network.keras")
+    nn_model = load_model(MODELS_DIR / "neural_network.keras", compile=False)
     return vectorizer, models, nn_model
 
 @st.cache_resource
