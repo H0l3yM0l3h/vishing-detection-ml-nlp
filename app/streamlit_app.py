@@ -10,6 +10,8 @@ import os
 import io
 
 from auth import sanitize_input
+from hybrid_engine import run_hybrid_analysis
+from llm_config import check_ollama_available
 from database import (
     log_analysis, get_user_history,
     check_rate_limit, record_rate_event,
@@ -512,6 +514,108 @@ def inject_css():
     ::-webkit-scrollbar-track { background:var(--bg); }
     ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:var(--blue); }
+
+    /* ══════════════════ PHASE 2: AI ANALYSIS PANELS ══════════════════ */
+
+    /* AI Analysis card */
+    .ai-card {
+        background:linear-gradient(135deg,rgba(0,170,255,.06),rgba(100,0,200,.04));
+        border:1px solid rgba(0,170,255,.22);
+        border-radius:12px; padding:24px 28px; margin:16px 0;
+        animation:fadeUp .5s ease;
+        position:relative; overflow:hidden;
+    }
+    .ai-card::before {
+        content:''; position:absolute; top:0; left:0; right:0; height:2px;
+        background:linear-gradient(90deg,transparent,rgba(0,170,255,.6),rgba(138,43,226,.5),transparent);
+    }
+    .ai-ttl {
+        font-family:'Orbitron',sans-serif; font-size:11px; font-weight:700;
+        color:var(--blue); letter-spacing:4px; text-transform:uppercase;
+        margin-bottom:16px; display:flex; align-items:center; gap:10px;
+    }
+    .ai-ttl::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,rgba(0,170,255,.3),transparent); }
+    .ai-field {
+        margin-bottom:12px;
+    }
+    .ai-field-lbl {
+        font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--muted);
+        letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;
+    }
+    .ai-field-val {
+        font-family:'Rajdhani',sans-serif; font-size:15px; color:var(--text);
+        line-height:1.6;
+    }
+    .ai-explanation {
+        background:rgba(0,0,0,.25); border:1px solid rgba(0,170,255,.12);
+        border-radius:8px; padding:14px 16px; margin:10px 0;
+        font-family:'Rajdhani',sans-serif; font-size:14px; color:#a0c0d8;
+        line-height:1.7; font-style:italic;
+    }
+
+    /* Social engineering tactic chips */
+    .tactic-box {
+        background:rgba(138,43,226,.06); border:1px solid rgba(138,43,226,.2);
+        border-radius:10px; padding:18px 22px; margin:12px 0;
+    }
+    .tactic-ttl {
+        font-family:'Share Tech Mono',monospace; font-size:9px; color:#b080e0;
+        letter-spacing:3px; text-transform:uppercase; margin-bottom:12px;
+    }
+    .tactic-chip {
+        display:inline-block; border-radius:5px;
+        padding:5px 14px; margin:4px;
+        font-family:'Share Tech Mono',monospace; font-size:11px;
+        font-weight:600; letter-spacing:1px;
+    }
+    .tc-urgency    { background:rgba(240,168,0,.12); border:1px solid rgba(240,168,0,.3); color:#e0a030; }
+    .tc-authority   { background:rgba(0,170,255,.1);  border:1px solid rgba(0,170,255,.25); color:#40a0e0; }
+    .tc-fear        { background:rgba(232,32,60,.1);  border:1px solid rgba(232,32,60,.25); color:#e06070; }
+    .tc-isolation   { background:rgba(138,43,226,.1); border:1px solid rgba(138,43,226,.25); color:#a060d0; }
+    .tc-reciprocity { background:rgba(0,232,122,.08); border:1px solid rgba(0,232,122,.2); color:#40c080; }
+    .tc-default     { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color:var(--muted); }
+
+    /* RAG similar cases */
+    .rag-card {
+        background:rgba(240,168,0,.04); border:1px solid rgba(240,168,0,.16);
+        border-radius:10px; padding:16px 20px; margin:12px 0;
+    }
+    .rag-ttl {
+        font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--amber);
+        letter-spacing:3px; text-transform:uppercase; margin-bottom:10px;
+    }
+    .rag-match {
+        background:rgba(0,0,0,.2); border:1px solid rgba(240,168,0,.1);
+        border-radius:6px; padding:10px 14px; margin:8px 0;
+    }
+    .rag-pct {
+        font-family:'Orbitron',sans-serif; font-size:16px; font-weight:700;
+        color:var(--amber);
+    }
+    .rag-type {
+        font-family:'Rajdhani',sans-serif; font-size:13px; color:var(--muted);
+        margin-top:2px;
+    }
+    .rag-preview {
+        font-family:'Share Tech Mono',monospace; font-size:10px; color:#4a5a6a;
+        margin-top:6px; line-height:1.5;
+    }
+
+    /* Source badge */
+    .src-badge {
+        display:inline-block; border-radius:4px; padding:3px 10px;
+        font-family:'Share Tech Mono',monospace; font-size:9px;
+        letter-spacing:2px;
+    }
+    .src-ml     { background:rgba(0,170,255,.08); border:1px solid rgba(0,170,255,.2); color:var(--blue); }
+    .src-hybrid { background:rgba(138,43,226,.08); border:1px solid rgba(138,43,226,.2); color:#b080e0; }
+
+    /* Divergence warning */
+    .divg-card {
+        background:linear-gradient(135deg,rgba(240,168,0,.08),rgba(200,120,0,.04));
+        border:1px solid rgba(240,168,0,.3); border-radius:12px;
+        padding:24px; margin:16px 0; text-align:center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -539,8 +643,14 @@ def render_header():
 # ═══════════════════════════════════════════════
 # RESULT RENDERER
 # ═══════════════════════════════════════════════
-def render_result(label: str, confidence: float, text: str, model_choice: str):
+def render_result(label: str, confidence: float, text: str, model_choice: str,
+                  hybrid: dict | None = None):
     pct = int(confidence * 100)
+
+    # Determine source badge
+    src = hybrid.get("source", "ml_only") if hybrid else "ml_only"
+    src_label = "HYBRID (ML + AI)" if src == "hybrid" else "ML ONLY"
+    src_css = "src-hybrid" if src == "hybrid" else "src-ml"
 
     if label == "vishing":
         st.markdown(f"""
@@ -553,7 +663,9 @@ def render_result(label: str, confidence: float, text: str, model_choice: str):
                 <span style="font-size:16px;font-weight:700;color:var(--red)">{pct}%</span>
             </div>
             <div class="cb-wrap"><div class="cb-fill cb-red" style="width:{pct}%"></div></div>
-            <div class="r-meta">ENGINE: {model_choice.upper()} &nbsp;|&nbsp; VERDICT: MALICIOUS &nbsp;|&nbsp; CONFIDENCE: {pct}%</div>
+            <div class="r-meta">ENGINE: {model_choice.upper()} &nbsp;|&nbsp; VERDICT: MALICIOUS &nbsp;|&nbsp; CONFIDENCE: {pct}%
+                &nbsp;|&nbsp; <span class="src-badge {src_css}">{src_label}</span>
+            </div>
           </div>
         </div>""", unsafe_allow_html=True)
 
@@ -583,6 +695,10 @@ def render_result(label: str, confidence: float, text: str, model_choice: str):
             <div class="adv-item"><span class="adv-ico">[>]</span><span>Alert family members — especially elderly relatives — about this scam pattern.</span></div>
         </div>""", unsafe_allow_html=True)
 
+    # ── Phase 2: Hybrid panels (vishing path) ──
+    if hybrid and hybrid.get("source") == "hybrid":
+        render_hybrid_panels(hybrid)
+
     else:
         st.markdown(f"""
         <div class="r-card r-safe">
@@ -594,7 +710,9 @@ def render_result(label: str, confidence: float, text: str, model_choice: str):
                 <span style="font-size:16px;font-weight:700;color:var(--green)">{pct}%</span>
             </div>
             <div class="cb-wrap"><div class="cb-fill cb-green" style="width:{pct}%"></div></div>
-            <div class="r-meta">ENGINE: {model_choice.upper()} &nbsp;|&nbsp; VERDICT: BENIGN &nbsp;|&nbsp; CONFIDENCE: {pct}%</div>
+            <div class="r-meta">ENGINE: {model_choice.upper()} &nbsp;|&nbsp; VERDICT: BENIGN &nbsp;|&nbsp; CONFIDENCE: {pct}%
+                &nbsp;|&nbsp; <span class="src-badge {src_css}">{src_label}</span>
+            </div>
           </div>
         </div>""", unsafe_allow_html=True)
 
@@ -610,6 +728,10 @@ def render_result(label: str, confidence: float, text: str, model_choice: str):
             <div class="adv-item"><span class="adv-ico">[>]</span><span>When in doubt, hang up and call the institution via their <strong>official published number</strong>.</span></div>
             <div class="adv-item"><span class="adv-ico">[>]</span><span>Register with <strong>MCMC Do Not Disturb</strong> to reduce unsolicited calls.</span></div>
         </div>""", unsafe_allow_html=True)
+
+    # ── Phase 2: Hybrid panels (both vishing and safe) ──
+    if hybrid and hybrid.get("source") == "hybrid":
+        render_hybrid_panels(hybrid)
 
 
 def _render_explanation(top_terms, title):
@@ -631,6 +753,116 @@ def _render_explanation(top_terms, title):
         {rows}
         <div class="expl-note">+ pushes toward VISHING &nbsp;|&nbsp; - pushes toward SAFE</div>
     </div>""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════
+# HYBRID RESULT RENDERERS (Phase 2)
+# ═══════════════════════════════════════════════
+def _tactic_css_class(tactic: str) -> str:
+    t = tactic.lower().strip()
+    if "urgency" in t:     return "tc-urgency"
+    if "authority" in t:   return "tc-authority"
+    if "fear" in t:        return "tc-fear"
+    if "isolation" in t:   return "tc-isolation"
+    if "reciprocity" in t: return "tc-reciprocity"
+    return "tc-default"
+
+
+def render_hybrid_panels(hybrid: dict):
+    """Render the AI Analysis, Tactics, and RAG panels for hybrid results."""
+    if not hybrid or hybrid.get("source") != "hybrid":
+        return
+
+    # ── Divergence warning ────────────────────
+    if hybrid.get("divergence_flag"):
+        st.markdown("""
+        <div class="divg-card">
+            <div class="r-verdict c-amber" style="font-size:20px">SUSPICIOUS — UNCONFIRMED</div>
+            <div style="color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:14px;margin-top:10px;line-height:1.6">
+                Our ML model and AI reasoning produced different conclusions.
+                This may be a borderline case. Exercise caution and verify the caller's identity independently.
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+    # ── AI Analysis panel ────────────────────
+    explanation = hybrid.get("explanation", "")
+    scam_type = hybrid.get("scam_type", "Unknown")
+    tactics = hybrid.get("tactic") or []
+
+    # Build tactics string for the card header
+    tactics_str = " / ".join(tactics) if tactics else "None detected"
+
+    st.markdown(f"""
+    <div class="ai-card">
+        <div class="ai-ttl">AI ANALYSIS — LLAMA 3.2</div>
+
+        <div class="ai-field">
+            <div class="ai-field-lbl">SCAM TYPE</div>
+            <div class="ai-field-val" style="font-weight:600;color:var(--blue)">{scam_type}</div>
+        </div>
+
+        <div class="ai-field">
+            <div class="ai-field-lbl">DETECTED TACTICS</div>
+            <div class="ai-field-val">{tactics_str}</div>
+        </div>
+
+        <div class="ai-field">
+            <div class="ai-field-lbl">AI EXPLANATION</div>
+            <div class="ai-explanation">{explanation if explanation else 'Analysis in progress...'}</div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Social Engineering Tactics chips ──────
+    if tactics:
+        chips = ""
+        for t in tactics:
+            css = _tactic_css_class(t)
+            chips += f'<span class="tactic-chip {css}">{t.upper()}</span>'
+
+        st.markdown(f"""
+        <div class="tactic-box">
+            <div class="tactic-ttl">SOCIAL ENGINEERING TACTICS DETECTED — {len(tactics)} FOUND</div>
+            {chips}
+        </div>""", unsafe_allow_html=True)
+
+    # ── RAG Similar Cases ────────────────────
+    similar = hybrid.get("similar_cases") or []
+    if similar:
+        matches_html = ""
+        for sc in similar:
+            pct = int(sc.get("similarity", 0) * 100)
+            matches_html += f"""
+            <div class="rag-match">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div class="rag-pct">{pct}%</div>
+                    <div>
+                        <div style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;color:var(--text)">
+                            {sc.get('scam_type', 'Unknown')}
+                        </div>
+                        <div class="rag-type">Historical scam pattern match</div>
+                    </div>
+                </div>
+                <div class="rag-preview">{sc.get('text_preview', '')[:150]}...</div>
+            </div>"""
+
+        st.markdown(f"""
+        <div class="rag-card">
+            <div class="rag-ttl">SIMILAR SCAM PATTERNS — RAG DATABASE</div>
+            {matches_html}
+        </div>""", unsafe_allow_html=True)
+
+    # ── Action Steps from LLM ────────────────
+    steps = hybrid.get("action_steps") or []
+    if steps:
+        steps_html = ""
+        for step in steps:
+            steps_html += f'<div class="adv-item"><span class="adv-ico">[>]</span><span>{step}</span></div>'
+
+        st.markdown(f"""
+        <div class="adv-card" style="border:1px solid rgba(0,170,255,.15)">
+            <div class="adv-ttl" style="color:var(--blue)">AI RECOMMENDED ACTIONS</div>
+            {steps_html}
+        </div>""", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════
@@ -685,18 +917,19 @@ def render_app():
         <div class="hero-tag">AI-Powered Voice Threat Detection</div>
         <div class="hero-h1">Detect <em>Voice Scam</em><br>Attacks Instantly</div>
         <div class="hero-p">
-            Record, upload, or paste a call transcript. Our machine learning engine
-            analyzes it in seconds and gives you a clear, explainable verdict.
+            Record, upload, or paste a call transcript. Our hybrid intelligence engine
+            combines ML classification, RAG pattern matching, and multi-agent LLM reasoning
+            to give you a clear, explainable verdict.
         </div>
     </div>""", unsafe_allow_html=True)
 
     # ── STATS ──
     st.markdown("""
     <div class="stats">
-        <div class="stat"><div class="stat-v">97.3%</div><div class="stat-l">Accuracy</div></div>
-        <div class="stat"><div class="stat-v">4</div><div class="stat-l">AI Models</div></div>
-        <div class="stat"><div class="stat-v">&lt;2s</div><div class="stat-l">Analysis</div></div>
-        <div class="stat"><div class="stat-v">NLP</div><div class="stat-l">Powered</div></div>
+        <div class="stat"><div class="stat-v">98.5%</div><div class="stat-l">ML Accuracy</div></div>
+        <div class="stat"><div class="stat-v">4+1</div><div class="stat-l">ML + LLM</div></div>
+        <div class="stat"><div class="stat-v">RAG</div><div class="stat-l">Pattern DB</div></div>
+        <div class="stat"><div class="stat-v">4</div><div class="stat-l">AI Agents</div></div>
         <div class="stat"><div class="stat-v">XAI</div><div class="stat-l">Explainable</div></div>
     </div>""", unsafe_allow_html=True)
 
@@ -915,9 +1148,49 @@ def render_app():
                   </div>
                 </div>""", unsafe_allow_html=True)
             else:
+                # Phase 2: Run hybrid analysis (ML → RAG → CrewAI)
+                top_terms = get_explanation(model_choice, clean)
+                phrases = detect_suspicious_phrases(clean)
+
+                hybrid_result = None
+                ollama_ok = check_ollama_available()
+                if ollama_ok:
+                    with st.spinner("Running AI-powered hybrid analysis (ML + RAG + LLM agents)..."):
+                        hybrid_result = run_hybrid_analysis(
+                            transcript=clean,
+                            model_choice=model_choice,
+                            ml_label=label,
+                            ml_score=confidence,
+                            top_keywords=top_terms,
+                            suspicious_phrases=phrases,
+                        )
+                else:
+                    # Ollama not available — ML-only mode
+                    hybrid_result = {
+                        "verdict": label,
+                        "confidence": confidence,
+                        "source": "ml_only",
+                        "ml_label": label,
+                        "explanation": None,
+                        "tactic": None,
+                        "scam_type": None,
+                        "similar_cases": None,
+                        "action_steps": None,
+                        "divergence_flag": False,
+                    }
+
                 log_analysis(username, len(clean), input_mode, model_choice, label, confidence)
                 record_rate_event(username)
-                render_result(label, confidence, clean, model_choice)
+                render_result(label, confidence, clean, model_choice, hybrid=hybrid_result)
+
+                # Show Ollama status if not available
+                if not ollama_ok:
+                    st.markdown("""
+                    <div class="info-box">
+                        <strong>AI Analysis Offline</strong> — Ollama is not running.
+                        Start Ollama to enable full hybrid analysis with LLM-powered explanations.<br>
+                        <code>ollama serve</code> then <code>ollama pull llama3.2:3b</code>
+                    </div>""", unsafe_allow_html=True)
 
     # ── HISTORY ──
     st.markdown('<div style="margin-top:36px">', unsafe_allow_html=True)
@@ -928,8 +1201,8 @@ def render_app():
     # ── FOOTER ──
     st.markdown("""
     <div class="ftr">
-        <div class="ftr-t">SHIELDGUARD v1.0 — CYBERSECURITY FYP</div>
-        <div class="ftr-t">SVM + LR + RF + NN &nbsp;|&nbsp; WHISPER ASR &nbsp;|&nbsp; SUPABASE &nbsp;|&nbsp; XAI</div>
+        <div class="ftr-t">SHIELDGUARD v2.0 — CYBERSECURITY FYP</div>
+        <div class="ftr-t">SVM + LR + RF + NN &nbsp;|&nbsp; WHISPER ASR &nbsp;|&nbsp; RAG + ChromaDB &nbsp;|&nbsp; CrewAI + LLM &nbsp;|&nbsp; XAI</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)  # close .wrap

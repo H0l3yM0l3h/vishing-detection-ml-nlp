@@ -16,6 +16,8 @@ Thumbs.db
 # Models & data
 data/
 *.db
+.hf_cache/
+test_rag.py
 
 # Jupyter
 .ipynb_checkpoints/
