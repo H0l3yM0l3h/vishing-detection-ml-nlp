@@ -299,7 +299,8 @@ The system has two frontends:
 
 ```
 VishingDetection/
-├── backend/                      ← FastAPI backend (Phase 3)
+│
+├── backend/                      ← FastAPI backend (current)
 │   ├── main.py                   ← FastAPI app: lifespan, endpoints, JWT auth
 │   ├── models_loader.py          ← ML model loading (joblib, keras)
 │   ├── inference.py              ← run_inference, get_explanation, detect_suspicious_phrases
@@ -315,7 +316,7 @@ VishingDetection/
 │   ├── requirements.txt
 │   └── .env                      ← Environment variables (gitignored)
 │
-├── frontend/                     ← React frontend (Phase 3)
+├── frontend/                     ← React frontend (current)
 │   ├── index.html                ← Google Fonts, meta tags
 │   ├── vite.config.js            ← Vite + Tailwind + API proxy to :8000
 │   ├── package.json
@@ -342,17 +343,17 @@ VishingDetection/
 │           ├── dashboard/        ← HeroSection, StepGuide, RateLimitBar, ScanHistory
 │           └── ui/               ← StatusBadge, InfoBox, WarnBox, ModelSelector
 │
-├── app/                          ← Streamlit frontend (Phase 1+2, legacy)
+├── app/                          ← Streamlit frontend (legacy, Phase 1+2)
 │   ├── main.py                   ← Streamlit entry point
 │   ├── streamlit_app.py          ← UI + inference + CSS
-│   ├── hybrid_engine.py          ← Same as backend/
-│   ├── rag_module.py             ← Same as backend/
-│   ├── llm_config.py             ← Same as backend/
+│   ├── hybrid_engine.py
+│   ├── rag_module.py
+│   ├── llm_config.py
 │   ├── database.py               ← Uses st.secrets (Streamlit-specific)
-│   ├── auth.py                   ← Same as backend/
-│   └── agents/                   ← Same as backend/
+│   ├── auth.py
+│   └── agents/
 │
-├── models/                       ← Trained ML models
+├── models/                       ← Trained ML models (production)
 │   ├── svm_model.pkl
 │   ├── logistic_regression_model.pkl
 │   ├── rf_model.pkl
@@ -360,14 +361,33 @@ VishingDetection/
 │   └── vectorizer.pkl
 │
 ├── data/
-│   ├── english_dataset_final_v2.csv  ← Training dataset (1,785 transcripts)
-│   └── scam_library/                 ← ChromaDB persistent storage
+│   ├── english_dataset_final_v2.csv  ← Production dataset (1,785 transcripts)
+│   ├── scam_library/                 ← ChromaDB persistent storage
+│   ├── archive/                      ← Old/intermediate datasets (gitignored)
+│   └── raw/                          ← Raw audio & source data (gitignored)
 │
-├── .streamlit/secrets.toml       ← Supabase credentials (Streamlit version)
+├── docs/                         ← Documentation & reference files
+│   ├── supabase_schema.sql       ← Database schema
+│   └── requirements_streamlit.txt ← Legacy Streamlit dependencies
+│
+├── notebooks/                    ← Jupyter notebooks (training & experiments)
+│   ├── 01_baseline_text_classification.ipynb
+│   ├── 02_prepare_korccvi.ipynb
+│   ├── 03_prepare_kaggle_voice.ipynb
+│   ├── 04_index_kaggle_audio.ipynb
+│   ├── evaluation.ipynb
+│   └── test.ipynb
+│
+├── tests/                        ← Test files
+│   ├── test_auth.py
+│   └── test_rag.py
+│
+├── .streamlit/secrets.toml       ← Supabase credentials (legacy, gitignored)
 ├── .gitignore
-├── LLMContext.md                 ← This file
-└── requirements.txt              ← Python dependencies (Streamlit version)
+├── README.md                     ← Quick start guide
+└── LLMContext.md                 ← This file — complete system documentation
 ```
+
 
 ---
 
