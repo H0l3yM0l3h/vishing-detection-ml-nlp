@@ -60,7 +60,7 @@ export default function HeroSection() {
     <div
       ref={heroRef}
       onMouseMove={handleMouseMove}
-      className="relative overflow-hidden text-center py-12"
+      className="relative overflow-hidden text-center py-12 w-full flex flex-col items-center"
     >
       {/* SVG Background Paths */}
       <svg
@@ -120,7 +120,7 @@ export default function HeroSection() {
       </div>
 
       {/* Description */}
-      <p className="text-[var(--muted)] text-base font-light max-w-[500px] mx-auto leading-relaxed relative z-10">
+      <p className="text-center text-[var(--muted)] text-base font-light max-w-[500px] mx-auto leading-relaxed relative z-10">
         Record, upload, or paste a call transcript. Our hybrid intelligence engine
         combines ML, RAG, and multi-agent LLM reasoning for an explainable verdict.
       </p>

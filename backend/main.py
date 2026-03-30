@@ -12,6 +12,11 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
+# ── Ensure backend/ is on sys.path (allows running from any CWD) ──
+_BACKEND_DIR = str(Path(__file__).resolve().parent)
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -62,7 +67,9 @@ from database import (
 JWT_SECRET    = os.environ.get("JWT_SECRET", "change-me-in-production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_H  = 24
-MODELS_DIR    = Path(os.environ.get("MODELS_DIR", str(Path(__file__).resolve().parent.parent / "models")))
+MODELS_DIR    = Path(os.environ.get("MODELS_DIR", "../models"))
+if not MODELS_DIR.is_absolute():
+    MODELS_DIR = (Path(__file__).resolve().parent / MODELS_DIR).resolve()
 CORS_ORIGINS  = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 
 
@@ -418,4 +425,4 @@ async def samples():
 # ═══════════════════════════════════════════════
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

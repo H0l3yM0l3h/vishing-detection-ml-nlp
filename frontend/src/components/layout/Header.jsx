@@ -11,7 +11,7 @@ export default function Header() {
       <div className="absolute top-0 left-0 right-0 h-[2px]"
         style={{ background: 'linear-gradient(90deg, transparent, var(--blue), var(--red), var(--blue), transparent)' }} />
 
-      <div className="flex items-center gap-5 px-12 py-4">
+      <div className="flex w-full justify-between items-center px-6 md:px-12 py-4">
         {/* Logo */}
         <div>
           <div className="font-display text-xl font-black tracking-[5px] text-[var(--text)] animate-flicker">

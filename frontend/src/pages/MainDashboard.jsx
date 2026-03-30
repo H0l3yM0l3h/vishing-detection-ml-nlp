@@ -22,6 +22,7 @@ import RAGSimilarCases from '../components/results/RAGSimilarCases'
 import ActionSteps from '../components/results/ActionSteps'
 import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
+import { CanvasRevealEffect } from '../components/ui/canvas-reveal-effect'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 
 export default function MainDashboard() {
@@ -38,11 +39,27 @@ export default function MainDashboard() {
     result?.verdict?.toLowerCase().includes('hang up')
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <div className="min-h-screen flex flex-col w-full relative">
+      {/* 3D Interactive Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <CanvasRevealEffect
+          animationSpeed={3}
+          containerClassName="bg-[var(--bg)]"
+          colors={[
+            [0, 170, 255], // Primary shieldguard blue
+            [232, 32, 60], // Threat red
+          ]}
+          dotSize={2.5}
+          reverse={false}
+          showGradient={true}
+        />
+      </div>
 
-      <main className="flex-1">
-        <div className="max-w-[900px] mx-auto px-6 py-10 animate-fade-up">
+      <div className="relative z-10 flex flex-col flex-1 w-full">
+        <Header />
+
+        <main className="flex-1 w-full flex flex-col items-center">
+          <div className="max-w-[900px] w-full px-6 py-10 animate-fade-up">
           <HeroSection />
 
           {/* Stats strip */}
@@ -160,6 +177,7 @@ export default function MainDashboard() {
       </main>
 
       <Footer />
+      </div>
     </div>
   )
 }
