@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--border)] py-6 mt-12">
-      <div className="max-w-[900px] mx-auto px-6 flex flex-col items-center gap-3">
+    <footer className="w-full flex flex-col items-center border-t border-[var(--border)] py-6 mt-12">
+      <div className="w-full max-w-[900px] px-6 flex flex-col items-center gap-3">
         <div className="flex items-center gap-3 flex-wrap justify-center">
           {['TF-IDF', 'SVM', 'LR', 'RF', 'NN', 'Whisper', 'ChromaDB', 'CrewAI', 'Ollama'].map((tag) => (
             <span key={tag}
