@@ -1,3 +1,10 @@
+import os
+
+# Ensure ffmpeg is on PATH (installed at D:\ffmpeg)
+_ffmpeg_bin = r"D:\ffmpeg\bin"
+if _ffmpeg_bin not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = _ffmpeg_bin + os.pathsep + os.environ.get("PATH", "")
+
 import streamlit as st
 from auth import validate_password, validate_username, hash_password, verify_password
 from database import (
