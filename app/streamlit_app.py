@@ -937,93 +937,198 @@ def render_app():
 
     st.markdown('<div class="wrap">', unsafe_allow_html=True)
 
-    # ── HERO ──
-    st.markdown("""
-    <div class="hero">
-        <!-- Background Flowing Paths -->
-        <svg class="hero-paths" viewBox="0 0 696 316" fill="none" preserveAspectRatio="xMidYMid slice">
-            <path d="M-380 -189C-380 -189 -312 216 152 343C616 470 684 875 684 875" stroke="rgba(0,170,255,.08)" stroke-width="0.5" style="animation-delay:0s"/>
-            <path d="M-360 -170C-360 -170 -292 236 172 363C636 490 704 895 704 895" stroke="rgba(0,170,255,.06)" stroke-width="0.8" style="animation-delay:2s"/>
-            <path d="M-340 -151C-340 -151 -272 256 192 383C656 510 724 915 724 915" stroke="rgba(232,32,60,.05)" stroke-width="0.6" style="animation-delay:4s"/>
-            <path d="M-320 -132C-320 -132 -252 276 212 403C676 530 744 935 744 935" stroke="rgba(0,170,255,.07)" stroke-width="0.5" style="animation-delay:6s"/>
-            <path d="M-300 -113C-300 -113 -232 296 232 423C696 550 764 955 764 955" stroke="rgba(232,32,60,.04)" stroke-width="0.7" style="animation-delay:8s"/>
-            <path d="M-280 -94C-280 -94 -212 316 252 443C716 570 784 975 784 975" stroke="rgba(0,170,255,.06)" stroke-width="0.5" style="animation-delay:10s"/>
-            <path d="M-260 -75C-260 -75 -192 336 272 463C736 590 804 995 804 995" stroke="rgba(138,43,226,.04)" stroke-width="0.6" style="animation-delay:12s"/>
-            <path d="M-240 -56C-240 -56 -172 356 292 483C756 610 824 1015 824 1015" stroke="rgba(0,170,255,.05)" stroke-width="0.8" style="animation-delay:14s"/>
-            <path d="M-400 -208C-400 -208 -332 196 132 323C596 450 664 855 664 855" stroke="rgba(232,32,60,.06)" stroke-width="0.5" style="animation-delay:3s"/>
-            <path d="M-420 -227C-420 -227 -352 176 112 303C576 430 644 835 644 835" stroke="rgba(0,170,255,.04)" stroke-width="0.7" style="animation-delay:7s"/>
-            <path d="M-440 -246C-440 -246 -372 156 92 283C556 410 624 815 624 815" stroke="rgba(138,43,226,.03)" stroke-width="0.6" style="animation-delay:11s"/>
-            <path d="M-460 -265C-460 -265 -392 136 72 263C536 390 604 795 604 795" stroke="rgba(0,170,255,.05)" stroke-width="0.5" style="animation-delay:15s"/>
-        </svg>
+    # ── HERO (uses components.html for JS/SVG support) ──
+    import streamlit.components.v1 as components
+    components.html("""
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap');
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { background:transparent; overflow:hidden; }
 
-        <div class="hero-tag">AI-Powered Voice Threat Detection</div>
-        <div class="hero-h1">Detect <em>Voice Scam</em><br>Attacks Instantly</div>
+      .hero { text-align:center; position:relative; padding:28px 20px 18px; font-family:'Rajdhani',sans-serif; }
 
-        <!-- Vaporize Text Cycle -->
-        <div class="hero-cycle-wrap">
-            <div class="hero-cycle-text" id="sg-cycle-text">ML + RAG + LLM AGENTS</div>
-        </div>
+      /* ── SVG Background Paths ── */
+      .hero-paths-wrap {
+        position:absolute; top:0; left:0; width:100%; height:100%;
+        pointer-events:none; overflow:hidden;
+      }
+      .hero-paths { width:100%; height:100%; }
+      .hero-paths path {
+        stroke-dasharray:1200; stroke-dashoffset:1200;
+        animation: drawP 25s linear infinite, fadeP 8s ease-in-out infinite;
+      }
+      @keyframes drawP { to { stroke-dashoffset:0 } }
+      @keyframes fadeP { 0%,100%{opacity:.06} 50%{opacity:.2} }
 
-        <div class="hero-p">
-            Record, upload, or paste a call transcript. Our hybrid intelligence engine
-            combines ML classification, RAG pattern matching, and multi-agent LLM reasoning
-            to give you a clear, explainable verdict.
-        </div>
+      /* ── Text styles ── */
+      .hero-tag {
+        font-family:'Orbitron',sans-serif; font-size:10px; color:#00aaff;
+        letter-spacing:7px; text-transform:uppercase; margin-bottom:10px;
+        position:relative; z-index:2;
+        animation: tagGlow 4s ease-in-out infinite;
+      }
+      @keyframes tagGlow { 0%,100%{text-shadow:0 0 6px rgba(0,170,255,.1)} 50%{text-shadow:0 0 16px rgba(0,170,255,.35),0 0 40px rgba(0,170,255,.08)} }
+
+      .hero-h1 {
+        font-family:'Rajdhani',sans-serif; font-size:42px; font-weight:700;
+        color:#d8eaf8; line-height:1.1; margin-bottom:6px;
+        position:relative; z-index:2;
+      }
+      .hero-h1 em { font-style:normal; color:#e8203c; }
+
+      /* ── Vaporize cycling text ── */
+      .cycle-wrap {
+        position:relative; z-index:2; height:36px;
+        display:flex; align-items:center; justify-content:center;
+        margin-bottom:10px; overflow:hidden;
+      }
+      .cycle-text {
+        font-family:'Orbitron',sans-serif; font-size:13px; font-weight:700;
+        letter-spacing:5px; text-transform:uppercase;
+        background:linear-gradient(90deg,#00aaff,#e8203c,#00aaff);
+        background-size:200% 100%;
+        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+        background-clip:text;
+        animation: gradShift 4s linear infinite;
+      }
+      .cycle-text span {
+        display:inline-block; transition: all .4s cubic-bezier(.4,0,.2,1);
+      }
+      @keyframes gradShift { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+
+      .hero-p {
+        color:#4a7090; font-size:14px; font-weight:300;
+        max-width:480px; margin:0 auto; line-height:1.65;
+        position:relative; z-index:2;
+      }
+    </style>
+
+    <div class="hero" id="heroBox">
+      <!-- Flowing SVG Paths (react to hover) -->
+      <div class="hero-paths-wrap">
+        <svg class="hero-paths" id="pathsSvg" viewBox="0 0 696 316" fill="none" preserveAspectRatio="xMidYMid slice"></svg>
+      </div>
+
+      <div class="hero-tag">AI-Powered Voice Threat Detection</div>
+      <div class="hero-h1">Detect <em>Voice Scam</em><br>Attacks Instantly</div>
+
+      <div class="cycle-wrap">
+        <div class="cycle-text" id="cycleText">ML + RAG + LLM AGENTS</div>
+      </div>
+
+      <div class="hero-p">
+        Record, upload, or paste a call transcript. Our hybrid intelligence
+        engine combines ML, RAG, and multi-agent LLM reasoning for an
+        explainable verdict.
+      </div>
     </div>
 
-    <!-- Text Cycle Script -->
     <script>
+    // ── Generate flowing paths ──
     (function(){
-        const phrases = [
-            'ML + RAG + LLM AGENTS',
-            'HYBRID INTELLIGENCE',
-            '4 AI AGENTS REASONING',
-            'EXPLAINABLE VERDICTS',
-            '98.5% ML ACCURACY'
-        ];
-        let idx = 0;
-        const el = document.getElementById('sg-cycle-text');
-        if (!el) return;
+      const svg = document.getElementById('pathsSvg');
+      const colors = [
+        'rgba(0,170,255,0.07)',  'rgba(0,170,255,0.05)',
+        'rgba(232,32,60,0.04)',  'rgba(0,170,255,0.06)',
+        'rgba(138,43,226,0.03)', 'rgba(232,32,60,0.05)',
+        'rgba(0,170,255,0.04)',  'rgba(138,43,226,0.04)',
+      ];
 
-        function vaporize() {
-            const chars = el.textContent.split('');
-            el.innerHTML = '';
-            chars.forEach((c, i) => {
-                const span = document.createElement('span');
-                span.textContent = c;
-                span.style.cssText = 'display:inline-block;transition:all .4s ease;';
-                el.appendChild(span);
-            });
+      let mouseX = 0.5, mouseY = 0.5;
+      const hero = document.getElementById('heroBox');
+      hero.addEventListener('mousemove', e => {
+        const r = hero.getBoundingClientRect();
+        mouseX = (e.clientX - r.left) / r.width;
+        mouseY = (e.clientY - r.top)  / r.height;
+      });
 
-            const spans = el.querySelectorAll('span');
-            spans.forEach((s, i) => {
-                setTimeout(() => {
-                    s.style.opacity = '0';
-                    s.style.transform = 'translateY(-20px) scale(0.6)';
-                    s.style.filter = 'blur(3px)';
-                }, i * 30);
-            });
+      // Create 18 paths
+      for(let i = 0; i < 18; i++){
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        const offset = i * 5;
+        const pos = (i % 2 === 0) ? 1 : -1;
+        path.setAttribute('d',
+          `M${-380 - offset*pos} ${-189 + i*8}C${-380 - offset*pos} ${-189 + i*8} ${-312 - offset*pos} ${216 - i*6} ${152 - offset*pos} ${343 - i*6}C${616 - offset*pos} ${470 - i*6} ${684 - offset*pos} ${875 - i*6} ${684 - offset*pos} ${875 - i*6}`
+        );
+        path.setAttribute('stroke', colors[i % colors.length]);
+        path.setAttribute('stroke-width', (0.4 + i * 0.04).toFixed(2));
+        path.style.animationDelay = (i * 1.3) + 's';
+        svg.appendChild(path);
+      }
 
-            setTimeout(() => {
-                idx = (idx + 1) % phrases.length;
-                el.innerHTML = '';
-                const newText = phrases[idx];
-                newText.split('').forEach((c, i) => {
-                    const span = document.createElement('span');
-                    span.textContent = c;
-                    span.style.cssText = 'display:inline-block;opacity:0;transform:translateY(14px);transition:all .35s ease;';
-                    el.appendChild(span);
-                    setTimeout(() => {
-                        span.style.opacity = '1';
-                        span.style.transform = 'translateY(0)';
-                    }, 50 + i * 25);
-                });
-            }, chars.length * 30 + 300);
-        }
-
-        setInterval(vaporize, 3500);
+      // Hover reactivity — shift paths based on mouse
+      function animatePaths(){
+        const paths = svg.querySelectorAll('path');
+        const shiftX = (mouseX - 0.5) * 30;
+        const shiftY = (mouseY - 0.5) * 15;
+        svg.style.transform = `translate(${shiftX}px, ${shiftY}px)`;
+        svg.style.transition = 'transform 0.8s ease-out';
+        requestAnimationFrame(animatePaths);
+      }
+      animatePaths();
     })();
-    </script>""", unsafe_allow_html=True)
+
+    // ── Vaporize text cycle ──
+    (function(){
+      const phrases = [
+        'ML + RAG + LLM AGENTS',
+        'HYBRID INTELLIGENCE',
+        '4 AI AGENTS REASONING',
+        'EXPLAINABLE VERDICTS',
+        '98.5% ML ACCURACY'
+      ];
+      let idx = 0;
+      const el = document.getElementById('cycleText');
+      if(!el) return;
+
+      function wrapChars(text){
+        el.innerHTML = '';
+        text.split('').forEach((c,i) => {
+          const s = document.createElement('span');
+          s.textContent = c === ' ' ? '\\u00A0' : c;
+          s.style.opacity = '1';
+          s.style.transform = 'translateY(0) scale(1)';
+          s.style.filter = 'blur(0)';
+          el.appendChild(s);
+        });
+      }
+      wrapChars(phrases[0]);
+
+      function vaporize(){
+        const spans = el.querySelectorAll('span');
+        spans.forEach((s,i) => {
+          setTimeout(() => {
+            s.style.opacity = '0';
+            s.style.transform = 'translateY(-22px) scale(0.5)';
+            s.style.filter = 'blur(4px)';
+          }, i * 28);
+        });
+
+        const outTime = spans.length * 28 + 350;
+        setTimeout(() => {
+          idx = (idx + 1) % phrases.length;
+          const next = phrases[idx];
+          el.innerHTML = '';
+          next.split('').forEach((c,i) => {
+            const s = document.createElement('span');
+            s.textContent = c === ' ' ? '\\u00A0' : c;
+            s.style.opacity = '0';
+            s.style.transform = 'translateY(16px) scale(0.8)';
+            s.style.filter = 'blur(2px)';
+            el.appendChild(s);
+            setTimeout(() => {
+              s.style.opacity = '1';
+              s.style.transform = 'translateY(0) scale(1)';
+              s.style.filter = 'blur(0)';
+            }, 40 + i * 22);
+          });
+        }, outTime);
+      }
+
+      setInterval(vaporize, 3500);
+    })();
+    </script>
+    """, height=290)
 
     # ── STATS ──
     st.markdown("""

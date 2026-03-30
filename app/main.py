@@ -1,9 +1,14 @@
 import os
 
-# Ensure ffmpeg is on PATH (installed at D:\ffmpeg)
-_ffmpeg_bin = r"D:\ffmpeg\bin"
+# Ensure ffmpeg is on PATH (extracted at D:\ffmpeg)
+_ffmpeg_bin = r"D:\ffmpeg\ffmpeg-8.1-essentials_build\bin"
 if _ffmpeg_bin not in os.environ.get("PATH", ""):
     os.environ["PATH"] = _ffmpeg_bin + os.pathsep + os.environ.get("PATH", "")
+
+# Tell pydub where ffmpeg/ffprobe are explicitly
+from pydub import AudioSegment
+AudioSegment.converter = os.path.join(_ffmpeg_bin, "ffmpeg.exe")
+AudioSegment.ffprobe   = os.path.join(_ffmpeg_bin, "ffprobe.exe")
 
 import streamlit as st
 from auth import validate_password, validate_username, hash_password, verify_password
