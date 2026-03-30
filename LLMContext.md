@@ -1,14 +1,18 @@
 # ShieldGuard — Complete System Context
-> **Version:** 2.0 — Hybrid Intelligence System
+> **Version:** 3.0 — Hybrid Intelligence System (React + FastAPI)
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML) + Phase 2 (LLM + RAG + CrewAI) both live
+> **Status:** IMPLEMENTED — Phase 1 (ML) + Phase 2 (LLM + RAG + CrewAI) + Phase 3 (React + FastAPI migration)
 
 ---
 
 ## Project Overview
 
 **ShieldGuard** is a web-based vishing (voice phishing) detection system. Users can record a suspicious call, upload an audio file, or paste a transcript — the system classifies it as **vishing** or **safe** using a hybrid cascade of ML models, RAG pattern matching, and LLM-powered multi-agent reasoning.
+
+The system has two frontends:
+- **Legacy:** Streamlit (monolithic, in `app/`)
+- **Current:** React + Tailwind CSS (decoupled, in `frontend/`) with FastAPI backend (`backend/`)
 
 ---
 
@@ -19,6 +23,16 @@
 │                     USER INPUT                                  │
 │         (audio recording / uploaded file / transcript)          │
 └─────────────────────┬───────────────────────────────────────────┘
+                      │
+          ┌───────────┴───────────┐
+          │  React Frontend       │  Port 5173
+          │  (Vite + Tailwind)    │
+          └───────────┬───────────┘
+                      │ HTTP (Axios + JWT)
+          ┌───────────┴───────────┐
+          │  FastAPI Backend      │  Port 8000
+          │  (Python REST API)    │
+          └───────────┬───────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -49,489 +63,421 @@
 │  LLM:    Llama 3.2 3B via Ollama (local, no API key)            │
 │  Process: Sequential — each agent reads previous output         │
 │                                                                 │
-│  Agent A: Technical Auditor    → validates ML flag              │
-│  Agent B: Pattern Detective    → classifies scam type           │
-│  Agent C: Psychology Profiler  → detects manipulation tactics   │
-│  Agent D: Safety Guardian      → writes user-facing verdict     │
+│  Agent A — Technical Auditor                                    │
+│    → Validates if ML flag is justified or false positive        │
 │                                                                 │
-│  Output:  verdict, scam_type, tactics, explanation, action_steps│
+│  Agent B — Pattern Detective                                    │
+│    → Classifies scam type using transcript + RAG results        │
+│                                                                 │
+│  Agent C — Psychology Profiler                                  │
+│    → Identifies social engineering tactics (URGENCY, FEAR, etc) │
+│                                                                 │
+│  Agent D — Safety Guardian                                      │
+│    → Produces user-facing verdict + explanation + action steps  │
+│                                                                 │
+│  Output:  verdict, explanation, scam_type, tactics, actions     │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  CROSS-CHECK — DIVERGENCE DETECTION                             │
+│  CROSS-CHECK — Divergence Detection                             │
 │                                                                 │
-│  Compares ML verdict vs LLM verdict                             │
-│  If they disagree → flag as "SUSPICIOUS — UNCONFIRMED"          │
-└─────────────────────┬───────────────────────────────────────────┘
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  SHIELDGUARD UI  (Streamlit)                                    │
-│                                                                 │
-│  Displays: ML verdict, confidence bar, highlighted transcript,  │
-│  XAI reasoning bar chart, AI explanation panel, tactic chips,   │
-│  RAG similar cases, action steps, safety advice                 │
+│  if ML says "vishing" but LLM says "safe" → FLAG               │
+│  if ML says "safe" but LLM says "vishing" → FLAG               │
+│  Flagged → verdict = "SUSPICIOUS — UNCONFIRMED"                 │
+│  Threshold: DIVERGENCE_THRESHOLD = 0.3                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Full Tech Stack
+## Technology Stack
 
-| Layer | Technology | Purpose |
+### Backend (Python)
+| Component | Technology | Version |
 |---|---|---|
-| **Frontend** | Streamlit + custom HTML/CSS | Web UI with dark cyberpunk theme |
-| **ML Models** | SVM, Logistic Regression, Random Forest, Neural Network | Phase 1 — fast binary classification |
-| **Feature Extraction** | TF-IDF (char_wb n-grams, 3-5, 30K features) | Text features for classical ML |
-| **Speech-to-Text** | OpenAI Whisper (`base` model, local) | Audio → transcript |
-| **Audio Recording** | `streamlit-audiorecorder` | Live mic capture in browser |
-| **Vector Database** | ChromaDB (persistent, local) | RAG — 1,266 indexed scam transcripts |
-| **Embedding Model** | `all-MiniLM-L6-v2` (sentence-transformers) | 384-dim embeddings for similarity search |
-| **LLM** | Llama 3.2 3B via Ollama (local) | Natural language reasoning & explanation |
-| **Agent Framework** | CrewAI 1.x (sequential process) | 4-agent multi-agent system |
-| **LLM Integration** | `langchain-ollama` (`OllamaLLM`) | LangChain-compatible LLM wrapper |
-| **Database** | Supabase (PostgreSQL cloud) | Users, auth, audit logs, rate limiting |
-| **Auth** | bcrypt (rounds=12) | Password hashing |
-| **Fonts** | Orbitron, Rajdhani, Share Tech Mono | Google Fonts for UI |
+| Web Framework | FastAPI | ≥0.115 |
+| ASGI Server | Uvicorn | ≥0.32 |
+| ML Framework | scikit-learn | 1.7.2 |
+| Deep Learning | TensorFlow/Keras | 2.15.1 |
+| NLP Vectorizer | TF-IDF (sklearn) | — |
+| Speech-to-Text | OpenAI Whisper | base model |
+| RAG Database | ChromaDB | ≥0.5.0 |
+| RAG Embeddings | sentence-transformers | all-MiniLM-L6-v2 |
+| Agent Framework | CrewAI | ≥0.28.0 |
+| LLM Backend | Ollama | llama3.2:3b (local) |
+| LLM Interface | LangChain + langchain-ollama | ≥0.2.0 |
+| Database | Supabase (PostgreSQL) | Cloud |
+| Authentication | bcrypt + JWT (python-jose) | — |
+| Audio Processing | pydub + ffmpeg | — |
+
+### Frontend (JavaScript)
+| Component | Technology | Version |
+|---|---|---|
+| UI Framework | React | 18 |
+| Build Tool | Vite | 8.x |
+| CSS Framework | Tailwind CSS | 4.x |
+| HTTP Client | Axios | — |
+| Routing | react-router-dom | v6 |
+| State Management | Zustand | — |
+| Charts | Recharts | — |
+
+### Infrastructure
+| Component | Technology |
+|---|---|
+| LLM Server | Ollama (localhost:11434) |
+| Database | Supabase (cloud PostgreSQL) |
+| Models Storage | Local filesystem (`models/`) |
+| RAG Storage | Local filesystem (`data/scam_library/`) |
+| Audio Engine | ffmpeg (D:\ffmpeg\ffmpeg-8.1-essentials_build\bin) |
 
 ---
 
-## Project File Structure
+## Security Implementation
+
+### Authentication
+- **Password Hashing:** bcrypt with 12 salt rounds
+- **Password Policy:** Minimum 12 characters, requires uppercase, lowercase, digit, and special character
+- **Username Policy:** 3-32 characters, alphanumeric + underscore only
+- **Session Management:** JWT tokens (HS256) with 24-hour expiry, stored in memory (not localStorage)
+- **Token Handling:** Attached as `Authorization: Bearer <token>` on every API request
+
+### Brute-Force Protection
+- **Max Attempts:** 5 failed logins per 15-minute window
+- **Lockout Duration:** 15 minutes after 5th failure
+- **Tracking:** All login attempts logged to Supabase `login_attempts` table
+
+### Rate Limiting
+- **Scan Limit:** 30 analyses per hour per user
+- **Tracking:** Each scan event logged to Supabase `rate_limit` table
+- **Enforcement:** Checked before every analysis; returns HTTP 429 when exceeded
+
+### Input Sanitization
+- **XSS Prevention:** All transcript inputs stripped of HTML tags via `re.sub(r"<[^>]+>", "", text)`
+- **HTML Entity Decoding:** `html.unescape()` applied after stripping
+- **Length Limit:** Maximum 10,000 characters per transcript
+
+### CORS
+- **Development:** Allows `http://localhost:5173` (Vite) and `http://localhost:3000`
+- **Configuration:** Via `CORS_ORIGINS` environment variable
+
+### Data Privacy
+- **No External APIs:** All AI processing runs locally (Ollama, ChromaDB, Whisper)
+- **No Data Sent Externally:** Transcripts never leave the local machine
+- **Credential Storage:** Supabase keys in `.env` file (gitignored)
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/login` | Login with username/password, returns JWT |
+| POST | `/api/auth/register` | Create account, returns JWT |
+| POST | `/api/auth/logout` | Logout (client-side token discard) |
+| GET | `/api/auth/me` | Get current user from JWT |
+
+### Analysis
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/analyze` | Full ML + hybrid cascade analysis |
+| POST | `/api/transcribe` | Upload audio → Whisper transcription |
+| GET | `/api/history` | Get last N scan results from Supabase |
+| GET | `/api/health` | System health check (models, Ollama, ChromaDB, Supabase) |
+| GET | `/api/samples` | Get sample vishing/safe transcripts |
+
+### Analysis Response Schema
+```json
+{
+  "verdict": "VISHING DETECTED | CALL APPEARS SAFE | INCONCLUSIVE | SUSPICIOUS — UNCONFIRMED",
+  "confidence": 0.942,
+  "source": "hybrid | ml_only",
+  "ml_label": "vishing | safe",
+  "ml_model": "SVM",
+  "insufficient_evidence": false,
+  "insufficient_reason": null,
+  "suspicious_phrases": ["account will be suspended", "verify your OTP"],
+  "highlighted_transcript": "<full transcript with <mark> tags>",
+  "top_keywords": [["verify", 0.823], ["account", 0.711]],
+  "explanation": "LLM-generated explanation string or null",
+  "scam_type": "Bank Impersonation | null",
+  "tactics": ["URGENCY", "AUTHORITY", "ISOLATION"],
+  "similar_cases": [
+    { "text_preview": "...", "scam_type": "OTP Fraud", "similarity": 0.87 }
+  ],
+  "action_steps": ["Hang up immediately", "Call your bank..."],
+  "divergence_flag": false
+}
+```
+
+---
+
+## ML Models
+
+### Training Data
+- **Dataset:** 1,785 labeled call transcripts (`data/english_dataset_final_v2.csv`)
+- **Split:** 80/20 train/test
+- **Labels:** "vishing" and "safe"
+- **Preprocessing:** TF-IDF vectorization
+
+### Models (Phase 1)
+| Model | File | Accuracy | Note |
+|---|---|---|---|
+| SVM | `models/svm_model.pkl` | 98.5% | CalibratedClassifier wrapping Pipeline(tfidf + svc) |
+| Logistic Regression | `models/logistic_regression_model.pkl` | ~97% | Pipeline(tfidf + lr) |
+| Random Forest | `models/rf_model.pkl` | ~96% | Pipeline(tfidf + rf) |
+| Neural Network | `models/neural_network.keras` | ~97% | Keras model, input: tf.constant([text]) |
+| Vectorizer | `models/vectorizer.pkl` | — | Shared TF-IDF vectorizer |
+
+### Inference Interface
+- **Classical models:** `model.predict([text])` → label, `model.predict_proba([text])` → probabilities
+- **Neural Network:** `nn.predict(tf.constant([text])) → float` (sigmoid, >0.5 = vishing)
+
+### Explainability (XAI)
+- **SVM + LR only:** TF-IDF coefficient extraction
+- Identifies top-5 keywords contributing most to the prediction
+- Displayed as horizontal bar chart in frontend
+
+---
+
+## RAG Module (ChromaDB)
+
+- **Collection:** `scam_transcripts` in `data/scam_library/`
+- **Embedding Model:** `all-MiniLM-L6-v2` (384-dim, CPU-friendly)
+- **Index Size:** 1,266 vishing transcripts from training data
+- **Query:** Cosine similarity, returns top-2 matches
+- **Scam Types:** Bank Impersonation, OTP Fraud, Tech Support Scam, Government Impersonation, Prize/Lottery Scam, Authority Threat Scam, Refund Scam, Investment Fraud, General Vishing
+- **Cache:** HuggingFace models cached at `.hf_cache/` relative to project root
+
+---
+
+## Multi-Agent System (CrewAI)
+
+### Agents
+| Agent | Role | Output |
+|---|---|---|
+| Technical Auditor | Validates ML flag (confirms or challenges) | "ML flag CONFIRMED" or "ML flag UNCERTAIN" |
+| Pattern Detective | Classifies scam type using transcript + RAG | Scam type + reasoning |
+| Psychology Profiler | Detects social engineering tactics | List of tactics with evidence |
+| Safety Guardian | Produces final user-facing verdict | VERDICT, SCAM_TYPE, TACTICS, EXPLANATION, ACTION_STEPS |
+
+### Configuration
+- **LLM:** `ollama/llama3.2:3b` (string identifier for CrewAI 1.x)
+- **Process:** Sequential (each agent sees previous agent's output)
+- **Fallback:** If Ollama is offline, returns ML-only result with graceful message
+
+---
+
+## Vishing Detection Patterns
+
+14 regex patterns detect suspicious phrases:
+- Account threats: `account.{0,15}(suspend|block|freeze|close|terminat)`
+- Identity verification: `(verify|confirm).{0,15}(account|identity|detail|information)`
+- Urgency language: `(urgent|immediately|right now|act now|limited time|within \d+ hour)`
+- OTP requests: `(OTP|one.time.password|one time pin|passcode)`
+- Financial info: `(bank|credit card|debit card).{0,20}(number|detail|info)`
+- Social engineering: `do not (tell|share|inform|disclose).{0,20}(anyone|anyone else|family|police|authority)`
+- Legal threats: `(legal action|arrested|lawsuit|court order|warrant)`
+- Money transfers: `transfer.{0,20}(fund|money|amount|rm|ringgit|dollar)`
+
+---
+
+## Supabase Database Schema
+
+### Tables
+| Table | Columns | Purpose |
+|---|---|---|
+| `users` | username, password_hash, role, created_at, last_login | User accounts |
+| `login_attempts` | username, success, attempted_at | Brute-force tracking |
+| `audit_log` | username, input_length, input_mode, model_used, verdict, confidence, analyzed_at | Scan history |
+| `rate_limit` | username, action, occurred_at | Rate limiting |
+
+---
+
+## File Structure
 
 ```
 VishingDetection/
-├── .streamlit/
-│   └── secrets.toml              ← Supabase credentials (gitignored)
-├── .hf_cache/                    ← HuggingFace model cache (gitignored)
+├── backend/                      ← FastAPI backend (Phase 3)
+│   ├── main.py                   ← FastAPI app: lifespan, endpoints, JWT auth
+│   ├── models_loader.py          ← ML model loading (joblib, keras)
+│   ├── inference.py              ← run_inference, get_explanation, detect_suspicious_phrases
+│   ├── hybrid_engine.py          ← ML→RAG→CrewAI cascade orchestrator
+│   ├── rag_module.py             ← ChromaDB scam library + similarity search
+│   ├── llm_config.py             ← Ollama LLM configuration
+│   ├── database.py               ← Supabase client + all DB functions
+│   ├── auth.py                   ← Password hashing, validation, sanitization
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── agent_definitions.py  ← 4 CrewAI agent definitions
+│   │   └── crew.py               ← Crew assembly, task prompting, output parsing
+│   ├── requirements.txt
+│   └── .env                      ← Environment variables (gitignored)
 │
-├── app/
-│   ├── main.py                   ← Entry point, auth router, session state
-│   ├── streamlit_app.py          ← Main UI, ML inference, hybrid result display
-│   ├── database.py               ← Supabase client, all DB operations
-│   ├── auth.py                   ← Password hashing, validation, XSS sanitization
-│   ├── supabase_schema.sql       ← SQL schema for Supabase tables
-│   ├── hybrid_engine.py          ← Phase 2: ML → RAG → CrewAI orchestrator
-│   ├── rag_module.py             ← Phase 2: ChromaDB + sentence-transformers RAG
-│   ├── llm_config.py             ← Phase 2: Ollama LLM configuration + health check
-│   └── agents/
-│       ├── __init__.py           ← Package init
-│       ├── agent_definitions.py  ← 4 CrewAI agent definitions
-│       └── crew.py               ← Crew assembly, prompt building, output parsing
+├── frontend/                     ← React frontend (Phase 3)
+│   ├── index.html                ← Google Fonts, meta tags
+│   ├── vite.config.js            ← Vite + Tailwind + API proxy to :8000
+│   ├── package.json
+│   └── src/
+│       ├── App.jsx               ← Router: /login, /app (protected)
+│       ├── main.jsx              ← React DOM mount
+│       ├── index.css             ← Tailwind + design system (CSS variables, keyframes)
+│       ├── api/client.js         ← Axios with JWT interceptor
+│       ├── hooks/
+│       │   ├── useAuth.js        ← Zustand: login, register, logout, token
+│       │   ├── useAnalysis.js    ← Zustand: analyze with progress tracking
+│       │   └── useTranscribe.js  ← Zustand: audio transcription
+│       ├── pages/
+│       │   ├── LoginPage.jsx     ← Login/Register with lockout display
+│       │   └── MainDashboard.jsx ← Full analysis dashboard
+│       └── components/
+│           ├── layout/           ← Header (logo, online badge), Footer
+│           ├── auth/             ← LoginForm, RegisterForm
+│           ├── input/            ← InputTabs, AudioRecorder, AudioUploader, TranscriptInput
+│           ├── results/          ← VerdictCard, RiskGauge, ConfidenceBar, PhraseChips,
+│           │                       HighlightedTranscript, XAIPanel, AIAnalysisCard,
+│           │                       TacticChips, RAGSimilarCases, ActionSteps,
+│           │                       SafetyAdvice, DivergenceWarning
+│           ├── dashboard/        ← HeroSection, StepGuide, RateLimitBar, ScanHistory
+│           └── ui/               ← StatusBadge, InfoBox, WarnBox, ModelSelector
 │
-├── models/
-│   ├── vectorizer.pkl            ← TF-IDF vectorizer (standalone)
-│   ├── svm_model.pkl             ← CalibratedClassifierCV wrapping LinearSVC
-│   ├── logistic_regression_model.pkl  ← Pipeline (tfidf → LogisticRegression)
-│   ├── rf_model.pkl              ← Pipeline (tfidf → RandomForestClassifier)
-│   ├── neural_network.keras      ← Keras model with TextVectorization
-│   └── neural_network.h5         ← Legacy H5 format (backup)
+├── app/                          ← Streamlit frontend (Phase 1+2, legacy)
+│   ├── main.py                   ← Streamlit entry point
+│   ├── streamlit_app.py          ← UI + inference + CSS
+│   ├── hybrid_engine.py          ← Same as backend/
+│   ├── rag_module.py             ← Same as backend/
+│   ├── llm_config.py             ← Same as backend/
+│   ├── database.py               ← Uses st.secrets (Streamlit-specific)
+│   ├── auth.py                   ← Same as backend/
+│   └── agents/                   ← Same as backend/
+│
+├── models/                       ← Trained ML models
+│   ├── svm_model.pkl
+│   ├── logistic_regression_model.pkl
+│   ├── rf_model.pkl
+│   ├── neural_network.keras
+│   └── vectorizer.pkl
 │
 ├── data/
-│   ├── english_dataset_final_v2.csv  ← Primary dataset (1,803 rows)
-│   ├── scam_library/             ← ChromaDB persistent storage (gitignored)
-│   └── (various CSV files)       ← Other dataset versions
+│   ├── english_dataset_final_v2.csv  ← Training dataset (1,785 transcripts)
+│   └── scam_library/                 ← ChromaDB persistent storage
 │
-├── notebooks/
-│   └── 01_baseline_text_classification.ipynb
-├── tests/
-├── requirements.txt
-└── users.db                      ← OLD SQLite file (unused, safe to delete)
+├── .streamlit/secrets.toml       ← Supabase credentials (Streamlit version)
+├── .gitignore
+├── LLMContext.md                 ← This file
+└── requirements.txt              ← Python dependencies (Streamlit version)
 ```
-
----
-
-## File-by-File Documentation
-
-### Phase 1 Files (ML + UI)
-
-#### `app/main.py` — Entry Point & Auth Router
-- Sets `st.set_page_config(layout="centered")`
-- Initializes session state (12 keys including Phase 2 additions)
-- Calls `ensure_scam_library()` on startup (Phase 2: populates ChromaDB)
-- Renders login/register with full custom CSS (dark cyberpunk theme)
-- Routes to `render_app()` after successful authentication
-- Security: brute-force lockout display, remaining attempts counter
-
-#### `app/streamlit_app.py` — Main Application UI
-- **Header**: SHIELDGUARD logo, SYSTEM ONLINE badge, operator name, logout
-- **Hero section**: description, stats (98.5% accuracy, 4+1 ML+LLM, RAG, 4 AI Agents, XAI)
-- **3-step guide**: Record/Upload → Analyze → Act on Results
-- **Rate limit bar**: shows usage (30 scans/hour)
-- **3-tab input system**:
-  - Tab 1: Record Audio (live mic via `streamlit-audiorecorder`)
-  - Tab 2: Upload Recording (.wav/.mp3/.m4a/.ogg/.flac, max 25MB)
-  - Tab 3: Paste Transcript (with sample vishing/safe buttons)
-- **Whisper transcription** for both audio tabs
-- **Advanced Settings**: AI model selection (SVM, LR, RF, NN)
-- **Analysis flow**: ML inference → hybrid analysis (RAG + CrewAI) → render results
-- **Result rendering**: threat/safe/inconclusive cards with pulsing glow animations
-- **Suspicious phrase detection**: regex patterns → highlighted transcript
-- **XAI reasoning panel**: weighted bar chart (SVM + LR only) showing TF-IDF contributions
-- **Phase 2 panels** (when hybrid analysis triggered):
-  - AI Analysis card (scam type, detected tactics, LLM explanation)
-  - Social engineering tactic chips (URGENCY, AUTHORITY, FEAR, ISOLATION, RECIPROCITY)
-  - RAG similar cases card (similarity %, matched scam type, text preview)
-  - AI recommended action steps
-  - Divergence warning (when ML and LLM disagree)
-  - Source badge: "ML ONLY" vs "HYBRID (ML + AI)"
-- **Safety advice**: different recommendations for vishing vs safe
-- **Scan history**: last 10 results from Supabase audit_log
-- **Footer**: SHIELDGUARD v2.0 with tech stack labels
-
-#### `app/database.py` — Supabase Backend
-- `get_supabase()` — cached Supabase client
-- `init_db()` — no-op (tables created via SQL schema)
-- `get_user(username)` — fetch user row
-- `create_user(username, password_hash)` — insert new user
-- `record_login_attempt(username, success)` — logs attempt, updates last_login
-- `is_locked_out(username)` → `(locked: bool, minutes_remaining: int)`
-- `count_recent_failures(username)` — for remaining attempts display
-- `log_analysis(...)` — writes every scan to audit_log
-- `get_user_history(username, limit)` — last N scans for history panel
-- `check_rate_limit(username)` → `(allowed: bool, used_count: int)`
-- `record_rate_event(username)` — inserts rate limit event
-- Constants: `MAX_ATTEMPTS=5`, `LOCKOUT_MINUTES=15`, `MAX_ANALYSES_PER_HOUR=30`
-
-#### `app/auth.py` — Authentication & Sanitization
-- `validate_password(password)` — 12+ chars, upper, lower, digit, special
-- `validate_username(username)` — alphanumeric + underscore, 3–32 chars
-- `sanitize_input(text, max_length)` — strips HTML tags, prevents XSS
-- `hash_password(password)` — bcrypt, rounds=12
-- `verify_password(password, hashed)` — safe bcrypt check
-
-#### `app/supabase_schema.sql` — Database Schema
-Creates 4 tables: `users`, `login_attempts`, `audit_log`, `rate_limit`
-Creates indexes on (username, time) for fast lockout/rate queries
-Enables Row Level Security (RLS) on all tables
-
----
-
-### Phase 2 Files (LLM + RAG + CrewAI)
-
-#### `app/llm_config.py` — Ollama LLM Configuration
-- `OLLAMA_BASE_URL = "http://localhost:11434"`
-- `MODEL_PRESETS` — config for llama3.2:3b, qwen2.5:32b, llama3.3:70b
-- `check_ollama_available()` — pings Ollama server, returns `True/False`
-- `get_available_models()` — lists all pulled models in Ollama
-- `get_llm(model)` — returns `OllamaLLM` instance (from `langchain-ollama`)
-
-#### `app/rag_module.py` — RAG with ChromaDB
-- Sets `HF_HOME` to project-local `.hf_cache/` directory (avoids C: drive issues)
-- **Embedding model**: `all-MiniLM-L6-v2` (384-dim, CPU-friendly, ~80MB)
-- **Storage**: `data/scam_library/` (persistent ChromaDB, cosine similarity)
-- `build_scam_library(csv_path)` — reads dataset, filters vishing rows, embeds and stores in ChromaDB. Auto-detects text/label columns. Heuristic scam type classification. Batch size 64.
-- `_classify_scam_type(text)` — keyword-based classifier: Bank Impersonation, OTP Fraud, Tech Support Scam, Government Impersonation, Prize/Lottery, Authority Threat, Refund Scam, Investment Fraud, General Vishing
-- `query_similar_scams(transcript, n_results=2)` → `[{text_preview, scam_type, similarity}]`
-- `ensure_scam_library()` — called on startup, builds library if empty (1,266 entries from dataset)
-
-#### `app/hybrid_engine.py` — Hybrid Orchestrator
-- `ML_THRESHOLD = 0.45` — skip LLM below this score
-- `DIVERGENCE_THRESHOLD = 0.3` — flag ML vs LLM disagreement
-- `run_hybrid_analysis(transcript, model_choice, ml_label, ml_score, top_keywords, ...)` → dict:
-  1. **Threshold gate**: score < 0.45 → return ML-only result
-  2. **RAG lookup**: query ChromaDB for top-2 similar scam cases
-  3. **Build case file**: package transcript + ML outputs + RAG results
-  4. **Run CrewAI crew**: 4-agent sequential pipeline
-  5. **Cross-check**: compare ML verdict vs LLM verdict, flag divergence
-  6. **Return**: structured dict with verdict, confidence, source, explanation, tactics, scam_type, similar_cases, action_steps, divergence_flag
-
-#### `app/agents/__init__.py` — Package Init
-Empty init to make `agents/` a proper Python package.
-
-#### `app/agents/agent_definitions.py` — 4 CrewAI Agents
-Each agent is a `crewai.Agent` with role, goal, backstory, and `llm` set to a string identifier (`"ollama/llama3.2:3b"` for CrewAI 1.x):
-
-| Agent | Role | What It Does |
-|---|---|---|
-| **Technical Auditor** | ML Score Interpreter | Validates whether ML flag is justified by examining transcript structure |
-| **Pattern Detective** | Scam Methodology Classifier | Matches call to known scam type using RAG results + transcript |
-| **Psychology Profiler** | Social Engineering Analyst | Identifies URGENCY, AUTHORITY, FEAR, ISOLATION, RECIPROCITY tactics |
-| **Safety Guardian** | User Output Writer | Consolidates all findings into plain-language verdict + action steps |
-
-#### `app/agents/crew.py` — Crew Assembly & Execution
-- `_build_audit_prompt(case_file)` — builds prompt for Technical Auditor
-- `_build_pattern_prompt(case_file)` — builds prompt for Pattern Detective (includes RAG results)
-- `_build_psych_prompt(case_file)` — builds prompt for Psychology Profiler
-- `_build_guardian_prompt(case_file)` — builds prompt for Safety Guardian (structured output format)
-- `_parse_guardian_output(raw_output)` — regex parser for VERDICT, SCAM_TYPE, TACTICS, EXPLANATION, ACTION_STEPS
-- `run_crew(case_file, model)` — assembles 4 agents + 4 tasks → `Crew(process=sequential)` → `crew.kickoff()` → parse and return structured dict
-- **Error handling**: if Ollama unreachable or crew fails, returns graceful fallback dict
-
----
-
-## ML Models — Phase 1
-
-### Dataset
-| Property | Value |
-|---|---|
-| File | `english_dataset_final_v2.csv` |
-| Total rows | 1,803 |
-| After dedup | 1,785 |
-| Vishing | 1,248 |
-| Safe | 537 |
-| Split method | `GroupShuffleSplit` (leakage-safe) |
-| Train set | 1,249 (854 vishing, 395 safe) |
-| Test set | 536 (394 vishing, 142 safe) |
-
-### Feature Extraction
-```python
-TfidfVectorizer(
-    analyzer     = "char_wb",     # character n-grams with word boundaries
-    ngram_range  = (3, 5),
-    min_df       = 2,
-    max_df       = 0.95,
-    max_features = 30_000
-)
-```
-Character-level n-grams capture partial words, morphological patterns, and are robust to spelling variations in scam scripts.
-
-### Model Performance
-
-| Model | Accuracy | Balanced Acc | F1-Macro |
-|---|---|---|---|
-| SVM (CalibratedClassifierCV) | 98.51% | 98.31% | 98.09% |
-| Logistic Regression | 98.51% | 98.76% | 98.11% |
-| Random Forest | 97.76% | 96.90% | 97.11% |
-
-**SVM per-class:**
-```
-              precision  recall  f1-score  support
-safe            0.965   0.979     0.972      142
-vishing         0.992   0.987     0.990      394
-accuracy                          0.985      536
-```
-
-### Neural Network Architecture
-```
-Input: shape=(1,) dtype=tf.string
-  → TextVectorization (character-level, max_tokens=2000, seq_len=300)
-  → Embedding (input_dim=2000, output_dim=64)
-  → Conv1D (128 filters, kernel=5, activation=relu)
-  → GlobalMaxPooling1D
-  → Dropout(0.3)
-  → Dense(64, relu)
-  → Dropout(0.2)
-  → Dense(1, sigmoid)
-
-Optimizer: Adam(lr=1e-3)
-Loss: binary_crossentropy
-Class weights: {safe: 1.581, vishing: 0.731}
-Early stopping: patience=3, restore_best_weights=True
-```
-
-### Inference Logic
-```python
-# Classical models (SVM, LR, RF)
-label      = model.predict([text])[0]            # "vishing" or "safe"
-confidence = float(np.max(model.predict_proba([text])))
-
-# Neural network
-prob  = float(nn_model.predict(tf.constant([text])).reshape(-1)[0])
-label = "vishing" if prob >= 0.5 else "safe"
-
-# Explainability (SVM + LR only)
-# TF-IDF coef_[0] from pipeline → top 5 by absolute weight → bar chart
-```
-
-### Evidence Quality Check
-- Min 5 words → else INCONCLUSIVE
-- Min 70% confidence → else INCONCLUSIVE
-
----
-
-## Audio Pipeline
-
-```
-User (mic or file upload)
-       ↓
-streamlit-audiorecorder OR st.file_uploader
-       ↓
-audio bytes (.wav / .mp3 / .m4a / .ogg / .flac)
-       ↓
-tempfile written to disk
-       ↓
-Whisper base model → transcribe(fp16=False)
-       ↓
-tempfile deleted immediately
-       ↓
-transcript string → sanitize_input()
-       ↓
-ML inference → hybrid analysis → result
-```
-
-**Whisper model:** `base` (≈140MB, downloads automatically)
-**Install:** `pip install openai-whisper` + ffmpeg on system PATH
-
----
-
-## Security Features
-
-| Feature | Implementation |
-|---|---|
-| Password hashing | bcrypt rounds=12 |
-| Brute-force lockout | 5 failed attempts → 15 min lockout (Supabase) |
-| Remaining attempts display | Shown after each failed login |
-| Input sanitization | HTML tag stripping + max 10,000 chars |
-| Username validation | Regex alphanumeric + underscore, 3–32 chars |
-| Rate limiting | 30 scans/hour per user, visual progress bar |
-| Audit logging | Every scan logged with model, verdict, confidence |
-| Audio cleanup | Temp files deleted immediately after transcription |
-| Secrets management | `.streamlit/secrets.toml` (gitignored) |
-| XSS prevention | `html.unescape` + tag stripping |
-| Local LLM | Ollama runs locally — no transcripts sent externally |
-
----
-
-## Supabase Setup
-
-**Tables:**
-- `users` — id, username (UNIQUE), password_hash, role, created_at, last_login
-- `login_attempts` — id, username, success, attempted_at
-- `audit_log` — id, username, input_length, input_mode, model_used, verdict, confidence, analyzed_at
-- `rate_limit` — id, username, action, occurred_at
-
-**Config:** `.streamlit/secrets.toml`
-```toml
-[supabase]
-url = "https://your-project.supabase.co"
-key = "your-anon-key"
-```
-
----
-
-## UI / Design System
-
-**Theme:** Dark cyberpunk / military-grade security aesthetic
-**No emojis** anywhere in the UI
-
-**Fonts:**
-- `Orbitron` — headings, logo, buttons, badges
-- `Rajdhani` — body text, labels, descriptions
-- `Share Tech Mono` — monospace data, metadata, tech labels
-
-**Color Palette:**
-| Variable | Hex | Usage |
-|---|---|---|
-| `--bg` | `#04080f` | Deep navy background |
-| `--c1` | `#08111c` | Card background |
-| `--c2` | `#0b1825` | Nested card |
-| `--red` | `#e8203c` | Threat / danger |
-| `--green` | `#00e87a` | Safe / success |
-| `--blue` | `#00aaff` | Accent / interactive |
-| `--amber` | `#f0a800` | Warning / inconclusive |
-| `--text` | `#d8eaf8` | Primary text |
-| `--muted` | `#4a7090` | Secondary text |
-| `--border` | `#112233` | Borders |
-
-**Phase 2 UI additions:**
-- `.ai-card` — gradient card with blue-purple top border for AI analysis
-- `.tactic-chip` + `.tc-*` — color-coded chips for each social engineering tactic
-- `.rag-card` + `.rag-match` — amber-themed RAG similarity results
-- `.src-badge` — "ML ONLY" / "HYBRID (ML + AI)" source indicator
-- `.divg-card` — amber warning for ML vs LLM divergence
-
----
-
-## Dependencies
-
-### Core (Phase 1)
-```
-streamlit, supabase, bcrypt, joblib, numpy, tensorflow, keras,
-scikit-learn, pandas, matplotlib, nltk, openai-whisper,
-streamlit-audiorecorder, ffmpeg
-```
-
-### Phase 2 Additions
-```
-crewai>=0.28.0           ← Multi-agent framework
-langchain>=0.2.0         ← LLM abstraction layer
-langchain-community>=0.2.0
-langchain-ollama         ← Ollama LLM integration (replaces deprecated community)
-chromadb>=0.5.0          ← Vector database for RAG
-sentence-transformers>=3.0.0  ← Embedding model (all-MiniLM-L6-v2)
-ollama>=0.2.0            ← Ollama Python client
-```
-
-### System Requirements
-- **Ollama**: Download from https://ollama.com (runs LLMs locally)
-- **ffmpeg**: Required for Whisper audio processing
-- **Model**: `ollama pull llama3.2:3b` (~2GB, runs on any machine with 4GB+ RAM)
-
----
-
-## Key Design Decisions
-
-### Why a Hybrid ML + LLM cascade instead of LLM-only?
-- ML inference is <100ms. LLM inference is 30-90 seconds for the full crew.
-- For clearly benign calls (score < 0.45), running the LLM wastes resources.
-- ML provides a numerical score and keyword list as concrete evidence for the LLM.
-- ML models have 98.5% accuracy — they are not a bottleneck.
-
-### Why CrewAI multi-agent instead of a single LLM call?
-- A single prompt gives one opinion. Multi-agent forces self-validation.
-- Agent A flags unreliable ML scores. Agent B independently checks patterns.
-- Agent C catches soft psychological signals that TF-IDF misses.
-- Reduces false positives and produces richer explanations.
-
-### Why Ollama instead of OpenAI/Anthropic API?
-- No API cost for a student FYP
-- Data stays local — no call transcripts sent to external servers
-- Works offline
-- Examiner-impressive: "We run everything locally with no external dependencies"
-
-### Why ChromaDB instead of keyword search?
-- Semantic similarity — matches script *structure* even without exact keywords
-- Scales to thousands of samples without slowing down
-- Adds a "Prior Precedent" dimension that pure ML cannot provide
 
 ---
 
 ## How to Run
 
-```bash
-# 1. Start Ollama (if not already running)
-ollama serve
-ollama pull llama3.2:3b
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- Ollama installed with `llama3.2:3b` model pulled
+- ffmpeg installed at `D:\ffmpeg\ffmpeg-8.1-essentials_build\bin`
 
-# 2. Activate venv and run
+### Option A: React + FastAPI (Recommended)
+
+**Terminal 1 — Backend:**
+```powershell
 cd d:\FYP1\VishingDetection
 .venv\Scripts\activate
-streamlit run app/main.py
+cd backend
+python main.py
+# Backend runs on http://localhost:8000
 ```
 
-App opens at **http://localhost:8501**
+**Terminal 2 — Frontend:**
+```powershell
+cd d:\FYP1\VishingDetection\frontend
+npm install
+npm run dev
+# Frontend runs on http://localhost:5173
+```
+
+**Open:** http://localhost:5173
+
+### Option B: Streamlit (Legacy)
+
+```powershell
+cd d:\FYP1\VishingDetection
+.venv\Scripts\activate
+.venv\Scripts\streamlit.exe run app/main.py
+# Runs on http://localhost:8501
+```
+
+### Environment Variables (Backend)
+
+Create `backend/.env`:
+```
+SUPABASE_URL=https://xwuwynsvpgavsadnnlko.supabase.co
+SUPABASE_KEY=your-anon-key
+OLLAMA_BASE_URL=http://localhost:11434
+JWT_SECRET=your-secret-key
+MODELS_DIR=../models
+HF_CACHE_DIR=../.hf_cache
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+```
+
+### Start Ollama (Required for Hybrid Analysis)
+```powershell
+ollama serve
+# In another terminal:
+ollama pull llama3.2:3b
+```
 
 ---
 
-## Known Issues / Notes
+## Design System
 
-- `users.db` (old SQLite) still exists in root — safe to delete
-- `layout="centered"` in page config is critical for login card centering
-- Whisper `fp16=False` is required on Windows/CPU
-- `streamlit-audiorecorder` requires HTTPS in production for mic access
-- HuggingFace cache redirected to `.hf_cache/` in project dir (C: drive space workaround)
-- First hybrid analysis takes ~30-90s as 4 LLM agents reason sequentially
-- If Ollama is down, system gracefully falls back to ML-only mode with info box
-- `llama3.2:3b` is used for prototyping — switch to `llama3.3:70b` for best quality
+### Fonts
+- **Orbitron** — Display/headings (cyberpunk, futuristic)
+- **Rajdhani** — Body text (clean, readable)
+- **Share Tech Mono** — Monospace/data (terminal aesthetic)
+
+### Color Palette
+| Variable | Hex | Usage |
+|---|---|---|
+| `--bg` | `#04080f` | Page background |
+| `--c1` | `#08111c` | Card background |
+| `--c2` | `#0b1825` | Nested card background |
+| `--red` | `#e8203c` | Threat/danger |
+| `--green` | `#00e87a` | Safe/success |
+| `--blue` | `#00aaff` | Accent/info |
+| `--amber` | `#f0a800` | Warning/caution |
+| `--text` | `#d8eaf8` | Primary text |
+| `--muted` | `#4a7090` | Secondary text |
+| `--border` | `#112233` | Borders |
+
+### Animations
+- `fadeUp` — Element entrance animation
+- `flicker` — Logo glitch effect
+- `pulsered` / `pulsegreen` — Verdict card glow
+- `blink` — System online indicator
+- `recpulse` — Recording indicator pulse
+- `vaporOut` / `vaporIn` — Hero text cycling
+- `drawPath` / `fadePath` — SVG background paths
+
+### Key UI Elements
+- **RiskGauge** — SVG semicircle with animated needle (green→amber→red)
+- **VerdictCard** — Pulsing glow border matching threat level
+- **HeroSection** — Mouse-reactive SVG paths + vaporize text cycling
+- **AudioRecorder** — Browser MediaRecorder API with pulsing red dot
+- Grid background with radial blue/red glows
 
 ---
 
-## Git Commit (Phase 2)
+## Threshold Configuration
 
-```
-feat(phase2): add hybrid ML + LLM + CrewAI + RAG architecture
-
-- Add hybrid_engine.py: ML → RAG → CrewAI orchestration with threshold gate
-- Add rag_module.py: ChromaDB scam library with 1,266 indexed vishing transcripts
-- Add llm_config.py: Ollama LLM config with health checks (langchain-ollama)
-- Add agents/crew.py: CrewAI crew assembly (4 agents, sequential process)
-- Add agents/agent_definitions.py: Technical Auditor, Pattern Detective,
-  Psychology Profiler, Safety Guardian
-- Update streamlit_app.py: AI analysis panel, tactic chips, RAG similarity
-  matches, source badges, divergence warnings, hybrid analysis flow
-- Update main.py: RAG startup init, 3 new session state keys
-- Update requirements.txt: crewai, chromadb, sentence-transformers, ollama
-- Update hero section + stats to reflect v2.0 hybrid system
-- Update footer to SHIELDGUARD v2.0 with full tech stack
-```
+| Threshold | Value | Purpose |
+|---|---|---|
+| `ML_THRESHOLD` | 0.45 | Skip LLM if ML confidence < 45% |
+| `DIVERGENCE_THRESHOLD` | 0.3 | Flag ML vs LLM disagreement |
+| `min_words` | 5 | Minimum transcript length |
+| `min_conf` | 0.70 | Minimum confidence for conclusive verdict |
+| `MAX_ANALYSES_PER_HOUR` | 30 | Rate limit per user |
+| `MAX_ATTEMPTS` | 5 | Login attempts before lockout |
+| `LOCKOUT_MINUTES` | 15 | Lockout duration |
