@@ -7,6 +7,7 @@ from database import (
     MAX_ATTEMPTS, LOCKOUT_MINUTES
 )
 from streamlit_app import render_app
+from rag_module import ensure_scam_library
 
 # ─────────────────────────────────────────────
 # Page config — must be FIRST streamlit call
@@ -22,6 +23,7 @@ st.set_page_config(
 # Init
 # ─────────────────────────────────────────────
 init_db()
+ensure_scam_library()   # Phase 2: populate ChromaDB on first run
 
 for key, default in {
     "authenticated":      False,
@@ -31,6 +33,9 @@ for key, default in {
     "transcribed_text":   "",
     "manual_text":        "",
     "recorded_audio":     None,
+    "llm_result":         None,      # Phase 2: crew output dict
+    "rag_matches":        [],        # Phase 2: ChromaDB results
+    "hybrid_mode":        False,     # Phase 2: whether LLM was triggered
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
