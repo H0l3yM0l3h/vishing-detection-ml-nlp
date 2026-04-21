@@ -3,6 +3,11 @@ inference.py — ML inference and explainability for ShieldGuard backend
 =======================================================================
 All functions are extracted VERBATIM from streamlit_app.py.
 The only change: functions take models as parameters instead of globals.
+
+[v2 update] get_explanation and explain_prediction now support the improved
+SVM pipeline which uses a FeatureUnion (char_wb + word TF-IDF) instead of
+a single TF-IDF step. Feature names are gathered from both transformers and
+concatenated to match the combined coefficient vector.
 """
 
 import re
@@ -54,12 +59,70 @@ def build_highlighted_transcript(text: str, phrases: list) -> str:
 # ═══════════════════════════════════════════════
 # EXPLAINABILITY (exact copy)
 # ═══════════════════════════════════════════════
+def _get_coef_from_svm(m):
+    """
+    Extract the coefficient vector from a CalibratedClassifierCV SVM pipeline.
+    Works for both v1 (Pipeline > CalibratedSVC) and
+    v2 (Pipeline > CalibratedClassifierCV wrapping LinearSVC).
+    """
+    clf_step = m.named_steps["clf"]
+    # CalibratedClassifierCV: grab coef from the first calibrated sub-estimator
+    if hasattr(clf_step, "calibrated_classifiers_"):
+        inner = clf_step.calibrated_classifiers_[0].estimator
+        # inner may itself be a LinearSVC directly
+        if hasattr(inner, "coef_"):
+            return inner.coef_[0]
+        # or a Pipeline whose last step is LinearSVC
+        if hasattr(inner, "named_steps"):
+            last = list(inner.named_steps.values())[-1]
+            if hasattr(last, "coef_"):
+                return last.coef_[0]
+    # Fallback for bare LinearSVC / LogisticRegression in pipeline
+    if hasattr(clf_step, "coef_"):
+        return clf_step.coef_[0]
+    raise ValueError("Cannot extract coefficients from model structure.")
+
+
+def _get_feature_names_and_matrix(m, text: str):
+    """
+    Return (feature_names, sparse_X) for the given pipeline and raw text.
+
+    Supports two pipeline structures:
+      v1 — Pipeline([('tfidf', TfidfVectorizer), ('clf', ...)])
+      v2 — Pipeline([('features', FeatureUnion([('char', ...), ('word', ...)])), ('clf', ...)])
+    """
+    feat_step = m.named_steps.get("features") or m.named_steps.get("tfidf")
+
+    if feat_step is None:
+        raise ValueError("Pipeline has no 'features' or 'tfidf' step.")
+
+    # v2: FeatureUnion with named transformers
+    if hasattr(feat_step, "transformer_list"):
+        X = feat_step.transform([text])
+        # Concatenate feature names from every named transformer
+        all_names = []
+        for name, transformer in feat_step.transformer_list:
+            if hasattr(transformer, "get_feature_names_out"):
+                all_names.extend([
+                    f"[{name}] {fn}"
+                    for fn in transformer.get_feature_names_out()
+                ])
+        return np.array(all_names), X
+
+    # v1: single TfidfVectorizer
+    X = feat_step.transform([text])
+    return feat_step.get_feature_names_out(), X
+
+
 def explain_prediction(model, X, feature_names, top_n=5):
-    """Extract TF-IDF feature contributions. VERBATIM from streamlit_app.py."""
-    if hasattr(model, "named_steps"):
-        coef = model.named_steps["clf"].coef_[0]
-    else:
-        coef = model.calibrated_classifiers_[0].estimator.named_steps["clf"].coef_[0]
+    """
+    Extract the top TF-IDF feature contributions for the predicted class.
+    Compatible with both v1 (single TF-IDF) and v2 (FeatureUnion) pipelines.
+    """
+    try:
+        coef = _get_coef_from_svm(model)
+    except Exception:
+        return []
     limit    = min(len(feature_names), len(coef))
     indices  = [i for i in X.nonzero()[1] if i < limit]
     contribs = {feature_names[i]: float(coef[i]) for i in indices}
@@ -68,20 +131,24 @@ def explain_prediction(model, X, feature_names, top_n=5):
 
 def get_explanation(model_choice: str, text: str, models: dict):
     """
-    Get TF-IDF explanation for SVM or LR.
-    Same logic as streamlit_app.py, but takes models dict as parameter.
+    Get TF-IDF feature explanation for SVM or Logistic Regression.
+
+    [v2 update] Now automatically detects whether the pipeline uses a single
+    TF-IDF vectorizer (v1) or a FeatureUnion (v2) and extracts feature names
+    and the sparse matrix accordingly.
     """
     if model_choice not in ["SVM", "Logistic Regression"]:
         return []
-    if model_choice == "Logistic Regression":
-        m     = models["Logistic Regression"]
-        tfidf = m.named_steps["tfidf"]
-    else:
-        m     = models["SVM"]
-        tfidf = m.calibrated_classifiers_[0].estimator.named_steps["tfidf"]
-    X     = tfidf.transform([text])
-    feats = tfidf.get_feature_names_out()
-    return explain_prediction(m, X, feats)
+
+    m = models.get(model_choice)
+    if m is None:
+        return []
+
+    try:
+        feature_names, X = _get_feature_names_and_matrix(m, text)
+        return explain_prediction(m, X, feature_names)
+    except Exception:
+        return []
 
 
 # ═══════════════════════════════════════════════

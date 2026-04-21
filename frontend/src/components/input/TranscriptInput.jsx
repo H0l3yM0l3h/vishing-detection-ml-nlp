@@ -1,69 +1,144 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import api from '../../api/client'
+import { Textarea } from '../ui/textarea'
+import { LiquidMetalButton } from '../ui/liquid-metal-button'
+import { useTranscribeStore } from '../../hooks/useTranscribe'
 
 export default function TranscriptInput({ onTranscriptReady }) {
   const [text, setText] = useState('')
   const [samples, setSamples] = useState(null)
+  const id = useId()
 
   useEffect(() => {
     api.get('/samples').then((r) => setSamples(r.data)).catch(() => {})
   }, [])
 
   const handleAnalyze = () => {
-    if (text.trim().length > 0) {
-      onTranscriptReady(text.trim(), 'text')
-    }
+    if (text.trim().length > 0) onTranscriptReady(text.trim(), 'text')
   }
 
   return (
-    <div className="space-y-4">
-      <div className="sec-label">Paste Transcript</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={8}
-        className="w-full bg-[#030a12] border border-[var(--border)] rounded-lg px-4 py-3 text-[var(--text)]
-          font-mono text-sm leading-7 outline-none resize-y transition-all
-          focus:border-[rgba(0,170,255,.5)] focus:shadow-[0_0_18px_rgba(0,170,255,.08)]
-          placeholder:text-[#1a3355]"
-        placeholder="Paste the call transcript here..."
-      />
+      {/* Textarea with floating/overlapping label */}
+      <div style={{ position: 'relative', width: '100%' }}>
+        {/* Overlapping label */}
+        <label
+          htmlFor={id}
+          style={{
+            position:    'absolute',
+            top:         0,
+            left:        '10px',
+            transform:   'translateY(-50%)',
+            zIndex:      10,
+            display:     'block',
+            padding:     '0 6px',
+            background:  'rgba(8,10,18,0.92)',
+            fontFamily:  "'JetBrains Mono', monospace",
+            fontSize:    '10px',
+            letterSpacing: '1.5px',
+            textTransform: 'uppercase',
+            color:       '#5A6475',
+            lineHeight:  1,
+            whiteSpace:  'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          Paste Transcript
+        </label>
 
-      {/* Sample buttons */}
-      <div className="flex gap-3">
-        {samples && (
-          <>
-            <button
-              onClick={() => setText(samples.vishing)}
-              className="flex-1 font-mono text-[9px] tracking-[2px] text-[var(--red)] border border-[rgba(232,32,60,.25)]
-                rounded px-3 py-2 bg-transparent cursor-pointer hover:bg-[rgba(232,32,60,.06)] transition-colors uppercase"
-            >
-              Sample Vishing
-            </button>
-            <button
-              onClick={() => setText(samples.safe)}
-              className="flex-1 font-mono text-[9px] tracking-[2px] text-[var(--green)] border border-[rgba(0,232,122,.25)]
-                rounded px-3 py-2 bg-transparent cursor-pointer hover:bg-[rgba(0,232,122,.06)] transition-colors uppercase"
-            >
-              Sample Safe
-            </button>
-          </>
+        <Textarea
+          id={id}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={8}
+          placeholder="Paste the call transcript here..."
+          style={{
+            width:           '100%',
+            background:      'rgba(8,10,18,0.85)',
+            border:          '1px solid rgba(255,255,255,.1)',
+            borderRadius:    '10px',
+            padding:         '16px 14px',
+            color:           '#F8FAFC',
+            fontFamily:      "'Plus Jakarta Sans', sans-serif",
+            fontSize:        '14px',
+            lineHeight:      1.7,
+            resize:          'vertical',
+            minHeight:       '200px',
+            outline:         'none',
+            transition:      'border-color .2s, box-shadow .2s',
+            boxSizing:       'border-box',
+          }}
+          className="placeholder:text-[#2E3A4A] focus-visible:ring-0 focus-visible:outline-none"
+          onFocus={(e) => {
+            e.target.style.borderColor  = 'rgba(99,102,241,.45)'
+            e.target.style.boxShadow    = '0 0 0 3px rgba(99,102,241,.08)'
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor  = 'rgba(255,255,255,.1)'
+            e.target.style.boxShadow    = 'none'
+          }}
+        />
+
+        {/* Character count — bottom-right corner */}
+        {text.length > 0 && (
+          <span style={{
+            position:   'absolute',
+            bottom:     '10px',
+            right:      '12px',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize:   '10px',
+            color:      '#3f3f46',
+            pointerEvents: 'none',
+          }}>
+            {text.length} chars
+          </span>
         )}
       </div>
 
-      <button
+      {/* Sample buttons */}
+      {samples && (
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setText(samples.vishing)}
+            style={{
+              flex: 1, fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
+              color: '#EF4444', border: '1px solid rgba(239,68,68,.25)',
+              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
+              cursor: 'pointer', transition: 'all .2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,.07)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            Sample Vishing
+          </button>
+          <button
+            type="button"
+            onClick={() => setText(samples.safe)}
+            style={{
+              flex: 1, fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
+              color: '#10B981', border: '1px solid rgba(16,185,129,.25)',
+              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
+              cursor: 'pointer', transition: 'all .2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,.07)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            Sample Safe
+          </button>
+        </div>
+      )}
+
+      {/* Analyze button — Liquid Metal */}
+      <LiquidMetalButton
+        label="Analyze Transcript"
         onClick={handleAnalyze}
         disabled={!text.trim()}
-        className="w-full font-display text-[11px] font-bold tracking-[3px] uppercase text-white
-          py-3.5 rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed border-none"
-        style={{
-          background: 'linear-gradient(135deg, #b81530, #801020)',
-          boxShadow: '0 4px 16px rgba(232,32,60,.28)',
-        }}
-      >
-        ANALYZE TRANSCRIPT
-      </button>
+        fullWidth
+      />
     </div>
   )
 }

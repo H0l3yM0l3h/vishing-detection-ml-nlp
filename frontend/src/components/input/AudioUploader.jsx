@@ -1,26 +1,27 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useId } from 'react'
 import { useTranscribeStore } from '../../hooks/useTranscribe'
+import { Label } from '../ui/label'
+import { LiquidMetalButton } from '../ui/liquid-metal-button'
+import { Upload } from 'lucide-react'
 
 const ALLOWED = ['.wav', '.mp3', '.m4a', '.ogg', '.flac', '.webm']
 const MAX_SIZE = 25 * 1024 * 1024
 
 export default function AudioUploader({ onTranscriptReady }) {
-  const [file, setFile] = useState(null)
+  const [file,  setFile]  = useState(null)
   const [error, setError] = useState(null)
   const inputRef = useRef()
+  const id = useId()
   const { transcribe, loading } = useTranscribeStore()
 
   const handleFile = (f) => {
     setError(null)
     const ext = '.' + f.name.split('.').pop().toLowerCase()
     if (!ALLOWED.includes(ext)) {
-      setError(`Unsupported format: ${ext}. Use ${ALLOWED.join(', ')}`)
+      setError(`Unsupported format ${ext}. Accepted: ${ALLOWED.join(', ')}`)
       return
     }
-    if (f.size > MAX_SIZE) {
-      setError('File too large (max 25MB)')
-      return
-    }
+    if (f.size > MAX_SIZE) { setError('File too large (max 25 MB)'); return }
     setFile(f)
   }
 
@@ -31,56 +32,79 @@ export default function AudioUploader({ onTranscriptReady }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div className="sec-label">Upload Audio File</div>
 
-      {/* Drop zone */}
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]) }}
-        className="border-2 border-dashed border-[var(--border)] rounded-lg p-8 text-center cursor-pointer
-          hover:border-[rgba(0,170,255,.3)] transition-colors"
-      >
-        <div className="font-display text-lg text-[var(--muted)] mb-2">DROP AUDIO FILE HERE</div>
-        <div className="font-mono text-[10px] text-[var(--muted)] tracking-wider">
-          WAV, MP3, M4A, OGG, FLAC, WEBM (max 25MB)
-        </div>
+      {/* Styled file input row */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <Label htmlFor={id} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: '#a1a1aa' }}>
+          Select file
+        </Label>
         <input
           ref={inputRef}
+          id={id}
           type="file"
           accept={ALLOWED.join(',')}
-          className="hidden"
           onChange={(e) => e.target.files[0] && handleFile(e.target.files[0])}
+          style={{ display: 'none' }}
         />
+        {/* Custom styled trigger */}
+        <div
+          onClick={() => !loading && inputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); e.dataTransfer.files[0] && handleFile(e.dataTransfer.files[0]) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '0', borderRadius: '10px', overflow: 'hidden',
+            border: '1px solid #27272a', cursor: loading ? 'not-allowed' : 'pointer',
+            transition: 'border-color .2s',
+          }}
+          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = '#3f3f46' }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a' }}
+        >
+          {/* File button area */}
+          <div style={{
+            padding: '10px 14px', background: '#18181b', borderRight: '1px solid #27272a',
+            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0,
+          }}>
+            <Upload size={14} style={{ color: '#6366f1' }} />
+            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', fontWeight: 500, color: '#a1a1aa', whiteSpace: 'nowrap' }}>
+              Choose file
+            </span>
+          </div>
+          {/* File name area */}
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace", fontSize: '12px',
+            color: file ? '#f4f4f5' : '#52525b', paddingRight: '12px',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {file ? file.name : 'No file selected'}
+          </span>
+          {file && (
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#52525b', marginLeft: 'auto', paddingRight: '12px', flexShrink: 0 }}>
+              {(file.size / 1024 / 1024).toFixed(1)} MB
+            </span>
+          )}
+        </div>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#3f3f46', letterSpacing: '0.5px' }}>
+          WAV, MP3, M4A, OGG, FLAC, WEBM — max 25 MB — drag and drop supported
+        </p>
       </div>
 
       {error && (
-        <div className="text-sm text-[var(--red)]">{error}</div>
-      )}
-
-      {file && (
-        <div className="flex items-center justify-between sg-card !p-3">
-          <span className="font-mono text-xs text-[var(--text)]">{file.name}</span>
-          <span className="font-mono text-[10px] text-[var(--muted)]">
-            {(file.size / 1024 / 1024).toFixed(1)} MB
-          </span>
+        <div style={{ background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#FCA5A5', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          {error}
         </div>
       )}
 
       {file && (
-        <button
+        <LiquidMetalButton
+          label={loading ? 'Transcribing...' : 'Upload and Transcribe'}
           onClick={handleUpload}
           disabled={loading}
-          className="w-full font-display text-[10px] font-bold tracking-[3px] uppercase text-white
-            py-3 rounded-lg cursor-pointer border-none disabled:opacity-50"
-          style={{
-            background: 'linear-gradient(135deg, #0066bb, #004488)',
-            boxShadow: '0 4px 16px rgba(0,170,255,.2)',
-          }}
-        >
-          {loading ? 'TRANSCRIBING...' : 'UPLOAD & TRANSCRIBE'}
-        </button>
+          loading={loading}
+          fullWidth
+        />
       )}
     </div>
   )

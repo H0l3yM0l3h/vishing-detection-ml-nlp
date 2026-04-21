@@ -1,51 +1,145 @@
 import { useAuthStore } from '../../hooks/useAuth'
+import { useSystemStatus } from '../../hooks/useSystemStatus'
+import { FeaturedIcon } from '../ui/featured-icons'
+import { Wifi, WifiOff, Loader } from 'lucide-react'
 
 export default function Header() {
-  const user = useAuthStore((s) => s.user)
+  const user   = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const sys    = useSystemStatus()
+
+  // Derive display from live status
+  const isChecking = sys.checking && sys.connected === null
+  const isOnline   = sys.connected && sys.status === 'online'
+  const isDegraded = sys.connected && sys.status === 'degraded'
+  const isOffline  = !sys.connected && !isChecking
+
+  const statusColor = isChecking ? 'gray' : isOnline ? 'success' : isDegraded ? 'warning' : 'error'
+  const StatusIcon  = isChecking ? Loader  : isOnline || isDegraded ? Wifi : WifiOff
+  const statusLabel = isChecking ? 'CHECKING...' : isOnline ? 'SYSTEM ONLINE' : isDegraded ? 'DEGRADED' : 'OFFLINE'
+  const statusSub   = isOnline
+    ? 'SVM v2 · RAG · LLM'
+    : isDegraded
+    ? 'Some components unavailable'
+    : isOffline
+    ? 'Cannot reach backend'
+    : ''
+
+  const labelColor  = isChecking ? '#52525b' : isOnline ? '#10B981' : isDegraded ? '#F59E0B' : '#EF4444'
 
   return (
-    <header className="relative overflow-hidden border-b border-[var(--border)]"
-      style={{ background: 'linear-gradient(135deg, #040c16, #08131f 60%, #040c16)' }}>
-      {/* Top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px]"
-        style={{ background: 'linear-gradient(90deg, transparent, var(--blue), var(--red), var(--blue), transparent)' }} />
+    <header style={{
+      background:     'rgba(2,3,5,0.85)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      borderBottom:   '1px solid rgba(255,255,255,.07)',
+      position:       'sticky',
+      top: 0,
+      zIndex: 50,
+    }}>
+      <div style={{
+        maxWidth: '960px', margin: '0 auto', padding: '0 24px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        height: '58px',
+      }}>
 
-      <div className="flex w-full justify-between items-center px-6 md:px-12 py-4">
         {/* Logo */}
-        <div>
-          <div className="font-display text-xl font-black tracking-[5px] text-[var(--text)] animate-flicker">
-            SHIELD<span className="text-[var(--red)]">GUARD</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '8px',
+            overflow: 'hidden', flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(99,102,241,.3)',
+          }}>
+            <img src="/logo.png" alt="ShieldGuard logo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </div>
-          <div className="font-mono text-[9px] text-[var(--blue)] tracking-[4px] uppercase mt-0.5">
-            Vishing Detection System
+          <div>
+            <div style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: 800, fontSize: '17px', color: '#F8FAFC', lineHeight: 1.1,
+            }}>
+              ShieldGuard
+            </div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '9px', color: '#5A6475', letterSpacing: '1px', textTransform: 'uppercase',
+            }}>
+              Vishing Detection
+            </div>
           </div>
         </div>
 
-        {/* Right section */}
-        <div className="ml-auto flex items-center gap-5">
-          {/* Online badge */}
-          <div className="flex items-center gap-1.5 border border-[rgba(0,232,122,.22)] rounded px-3 py-1.5"
-            style={{ background: 'rgba(0,232,122,.06)' }}>
-            <div className="w-[5px] h-[5px] rounded-full bg-[var(--green)] animate-blink"
-              style={{ boxShadow: '0 0 6px var(--green)' }} />
-            <span className="font-mono text-[9px] text-[var(--green)] tracking-[2px]">SYSTEM ONLINE</span>
+        {/* Right */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
+          {/* System status — live */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FeaturedIcon
+              icon={StatusIcon}
+              theme="outline"
+              color={statusColor}
+              size="md"
+              style={isChecking ? { animation: 'spin 1.5s linear infinite' } : undefined}
+            />
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: labelColor, letterSpacing: '0.5px', lineHeight: 1, transition: 'color .4s' }}>
+                {statusLabel}
+              </div>
+              {statusSub && (
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: '#3f3f46', letterSpacing: '0.5px', lineHeight: 1, marginTop: '3px' }}>
+                  {statusSub}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* User */}
+          {/* Divider */}
+          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,.08)' }} />
+
+          {/* User avatar chip */}
           {user && (
-            <span className="font-mono text-[9px] text-[var(--muted)] tracking-[2px]">
-              OPERATOR: <span className="text-[var(--blue)]">{user.username.toUpperCase()}</span>
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '30px', height: '30px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 700, fontSize: '12px', color: '#fff',
+                flexShrink: 0, userSelect: 'none',
+                boxShadow: '0 2px 8px rgba(99,102,241,.4)',
+              }}>
+                {user.username.charAt(0).toUpperCase()}
+              </div>
+              <span style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: '13px', fontWeight: 600, color: '#E4E8EF',
+              }}>
+                {user.username}
+              </span>
+            </div>
           )}
 
-          {/* Logout */}
+          {/* Sign out */}
           <button
             onClick={logout}
-            className="font-mono text-[9px] tracking-[2px] text-[var(--muted)] border border-[var(--border)] px-3 py-1.5 rounded
-              hover:border-[var(--red)] hover:text-[var(--red)] transition-colors cursor-pointer bg-transparent"
+            style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '12px', fontWeight: 500,
+              color: '#5A6475', background: 'transparent',
+              border: '1px solid transparent',
+              borderRadius: '8px', padding: '6px 12px',
+              cursor: 'pointer', transition: 'all .2s', letterSpacing: '0.2px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#EF4444'
+              e.currentTarget.style.borderColor = 'rgba(239,68,68,.25)'
+              e.currentTarget.style.background = 'rgba(239,68,68,.06)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#5A6475'
+              e.currentTarget.style.borderColor = 'transparent'
+              e.currentTarget.style.background = 'transparent'
+            }}
           >
-            LOGOUT
+            Sign out
           </button>
         </div>
       </div>

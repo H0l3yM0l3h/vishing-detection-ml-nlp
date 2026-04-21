@@ -1,8 +1,27 @@
 # ShieldGuard — Complete System Context
-> **Version:** 3.0 — Hybrid Intelligence System (React + FastAPI)
+> **Version:** 3.1 — Improved ML Pipeline (v2 SVM promoted)
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML) + Phase 2 (LLM + RAG + CrewAI) + Phase 3 (React + FastAPI migration)
+> **Status:** IMPLEMENTED — Phase 1 (ML v2) + Phase 2 (LLM + RAG + CrewAI) + Phase 3 (React + FastAPI)
+
+---
+
+## Changelog
+
+### v3.1 — 2026-04-22 — ML Model Upgrade
+
+**What changed:**
+- Retrained SVM classifier with 5 improvements (see ML Models section below).
+- F1-macro improved from **0.9809 → 0.9936** (+1.27%). Accuracy 98.5% → 99.4%.
+- Promoted `svm_model_v2.pkl` to `models/svm_model.pkl` (production).
+- Moved all v1 models to `models/legacy/` (LR, RF, NN h5, vectorizer).
+- Updated `backend/inference.py`: `get_explanation` now supports both v1 (single TF-IDF) and v2 (FeatureUnion) pipeline structures automatically.
+- Updated `backend/models_loader.py`: vectorizer is now optional (baked into SVM pipeline); legacy LR and RF loaded from `models/legacy/` if present.
+- Added `notebooks/02_improved_ml_training.py`: complete v2 training script with cell-by-cell Jupyter comments.
+
+### v3.0 — Earlier — React + FastAPI Migration
+- Decoupled Streamlit monolith into React frontend + FastAPI backend.
+- Added JWT authentication, Supabase persistence, CrewAI multi-agent reasoning.
 
 ---
 
@@ -38,7 +57,7 @@ The system has two frontends:
 ┌─────────────────────────────────────────────────────────────────┐
 │  LAYER 1 — ML CLASSIFIER  (Phase 1)                             │
 │                                                                 │
-│  Engine:  TF-IDF + SVM / LR / RF / NN                           │
+│  Engine:  FeatureUnion (char_wb + word TF-IDF) + SVM v2         │
 │  Speed:   <100ms (fast, deterministic)                          │
 │  Output:  ml_score (float), ml_label, top_keywords              │
 │                                                                 │
@@ -100,7 +119,8 @@ The system has two frontends:
 | ASGI Server | Uvicorn | ≥0.32 |
 | ML Framework | scikit-learn | 1.7.2 |
 | Deep Learning | TensorFlow/Keras | 2.15.1 |
-| NLP Vectorizer | TF-IDF (sklearn) | — |
+| NLP Vectorizer | TF-IDF FeatureUnion (char_wb 3-5 + word 1-2) | — |
+| Lemmatizer | NLTK WordNetLemmatizer | — |
 | Speech-to-Text | OpenAI Whisper | base model |
 | RAG Database | ChromaDB | ≥0.5.0 |
 | RAG Embeddings | sentence-transformers | all-MiniLM-L6-v2 |
@@ -216,26 +236,44 @@ The system has two frontends:
 ## ML Models
 
 ### Training Data
-- **Dataset:** 1,785 labeled call transcripts (`data/english_dataset_final_v2.csv`)
-- **Split:** 80/20 train/test
+- **Dataset:** 1,785 labeled call transcripts (before EDA) + ~214 augmented 'safe' samples — `data/english_dataset_final_v2.csv`
+- **Split:** 75/25 train/test (stratified)
 - **Labels:** "vishing" and "safe"
-- **Preprocessing:** TF-IDF vectorization
+- **Preprocessing (v2):** ASCII normalization → NLTK Lemmatization → FeatureUnion TF-IDF
 
-### Models (Phase 1)
+### Active Models (v2 — Production)
+| Model | File | Accuracy | F1-macro | Note |
+|---|---|---|---|---|
+| SVM v2 | `models/svm_model.pkl` | **99.4%** | **0.9936** | FeatureUnion (char+word) + CalibratedLinearSVC (C=10) |
+| Neural Network | `models/neural_network.keras` | ~98.7% | ~0.983 | Keras CNN, unchanged from v1 |
+
+### Legacy Models (v1 — Reference Only)
+Moved to `models/legacy/` — still loaded by `models_loader.py` for backward compatibility.
 | Model | File | Accuracy | Note |
 |---|---|---|---|
-| SVM | `models/svm_model.pkl` | 98.5% | CalibratedClassifier wrapping Pipeline(tfidf + svc) |
-| Logistic Regression | `models/logistic_regression_model.pkl` | ~97% | Pipeline(tfidf + lr) |
-| Random Forest | `models/rf_model.pkl` | ~96% | Pipeline(tfidf + rf) |
-| Neural Network | `models/neural_network.keras` | ~97% | Keras model, input: tf.constant([text]) |
-| Vectorizer | `models/vectorizer.pkl` | — | Shared TF-IDF vectorizer |
+| SVM v1 | `models/legacy/svm_model_v1.pkl` | 98.5% | Single char_wb TF-IDF + CalibratedLinearSVC |
+| Logistic Regression | `models/legacy/logistic_regression_model_v1.pkl` | ~98.5% | — |
+| Random Forest | `models/legacy/rf_model_v1.pkl` | ~97.8% | — |
+| Vectorizer | `models/legacy/vectorizer_v1.pkl` | — | Standalone TF-IDF (no longer needed in v2) |
+
+### v2 Training Improvements
+| Improvement | Detail | Result |
+|---|---|---|
+| Lemmatization | NLTK WordNetLemmatizer (verb pass + noun pass) | Normalized vocabulary, denser feature matrix |
+| EDA Augmentation | Synonym replacement on 'safe' class only (AUG_RATIO=0.40) | Reduced class imbalance |
+| FeatureUnion | char_wb TF-IDF (3-5, 25K feats) + word TF-IDF (1-2, 15K feats) | 40K combined features |
+| K-Fold CV | StratifiedKFold k=5 on training set | Proved stability: all folds F1 > 0.98 |
+| GridSearchCV | C in {0.05, 0.1, 0.5, 1.0, 5.0, 10.0}, 5-fold | Best C=10.0 selected automatically |
 
 ### Inference Interface
-- **Classical models:** `model.predict([text])` → label, `model.predict_proba([text])` → probabilities
+- **SVM v2:** `model.predict([text])` → label, `model.predict_proba([text])` → probabilities
+  - The pipeline internally applies FeatureUnion vectorization — no separate vectorizer call needed.
 - **Neural Network:** `nn.predict(tf.constant([text])) → float` (sigmoid, >0.5 = vishing)
 
 ### Explainability (XAI)
-- **SVM + LR only:** TF-IDF coefficient extraction
+- **SVM:** TF-IDF coefficient extraction via `get_explanation()` in `inference.py`
+  - v2-aware: automatically detects FeatureUnion vs single-TF-IDF pipeline structure
+  - Feature names prefixed with `[char]` or `[word]` to indicate which vectorizer contributed
 - Identifies top-5 keywords contributing most to the prediction
 - Displayed as horizontal bar chart in frontend
 
@@ -353,12 +391,15 @@ VishingDetection/
 │   ├── auth.py
 │   └── agents/
 │
-├── models/                       ← Trained ML models (production)
-│   ├── svm_model.pkl
-│   ├── logistic_regression_model.pkl
-│   ├── rf_model.pkl
-│   ├── neural_network.keras
-│   └── vectorizer.pkl
+├── models/                       ← Trained ML models
+│   ├── svm_model.pkl             ← ACTIVE: SVM v2 (FeatureUnion, C=10, Lemma+EDA)
+│   ├── neural_network.keras      ← ACTIVE: Keras CNN (unchanged from v1)
+│   └── legacy/                   ← v1 models (reference / backward compat)
+│       ├── svm_model_v1.pkl
+│       ├── logistic_regression_model_v1.pkl
+│       ├── rf_model_v1.pkl
+│       ├── vectorizer_v1.pkl
+│       └── neural_network_v1.h5
 │
 ├── data/
 │   ├── english_dataset_final_v2.csv  ← Production dataset (1,785 transcripts)
@@ -370,11 +411,15 @@ VishingDetection/
 │   ├── supabase_schema.sql       ← Database schema
 │   └── requirements_streamlit.txt ← Legacy Streamlit dependencies
 │
-├── notebooks/                    ← Jupyter notebooks (training & experiments)
-│   ├── 01_baseline_text_classification.ipynb
+├── notebooks/                    ← Training notebooks and scripts
+│   ├── 01_baseline_text_classification.ipynb  ← v1 baseline (SVM/LR/RF/NN)
+│   ├── 02_improved_ml_training.py             ← v2 training (Lemma+EDA+FeatureUnion+KFold+Grid)
 │   ├── 02_prepare_korccvi.ipynb
 │   ├── 03_prepare_kaggle_voice.ipynb
 │   ├── 04_index_kaggle_audio.ipynb
+│   ├── confusion_matrix_v2.png                ← v2 confusion matrix
+│   ├── kfold_results_v2.png                   ← 5-fold CV chart
+│   ├── gridsearch_c_f1_v2.png                 ← GridSearch C vs F1 chart
 │   ├── evaluation.ipynb
 │   └── test.ipynb
 │

@@ -7,7 +7,7 @@
 **Backend** (Terminal 1):
 ```powershell
 cd backend
-..\\.venv\Scripts\activate
+..\.venv\Scripts\activate
 python main.py
 ```
 
@@ -23,16 +23,27 @@ npm run dev
 ## Architecture
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
-| ML Classifier | TF-IDF + SVM/LR/RF/NN | Fast classification (98.5% accuracy) |
+|-------|-----------|---------| 
+| ML Classifier | TF-IDF (FeatureUnion: char+word) + SVM | Fast classification (99.4% accuracy) |
 | RAG Search | ChromaDB + MiniLM-L6-v2 | Historical scam pattern matching |
 | Multi-Agent LLM | CrewAI + Ollama (Llama 3.2 3B) | Verdict reasoning with 4 AI agents |
+
+## Features
+
+- **Advanced Machine Learning Engine**: Evaluates linguistic patterns, emotional tone, and urgency indicators to detect scams.
+- **RAG + LLM Context Search**: Cross-references local vector databases of known scam scripts (ChromaDB) and generates natural language explanations via Ollama.
+- **Deep Neural Network Validation**: Second-stage verification routing high-risk transcripts through an optimized multi-layer perceptron.
+- **Real-Time System Health**: Live health monitoring (`/api/health`) tracks connectivity and loaded ML models via a reactive polling hook.
+- **V2 "Dark Tech Startup" UI**: Completely overhauled dark-mode interface (`#09090b` base) built with custom Shadcn-compatible components.
+- **WebGL Interactive Elements**: Features high-performance WebGL shaders including an ethereal fluid background on the authentication page and interactive `LiquidMetalButton` components.
+- **Professional Input Components**: Includes floating-label transcript inputs, drag-and-drop audio zones, and a scroll-gated Terms & Conditions dialog.
+- **Local-First Audio Processing**: Client-side transcription using local instances of OpenAI's Whisper model via FastAPI.
 
 ## How It Works (System Flow)
 
 The system uses a sequential hybrid cascade connecting classic Machine Learning with Generative AI (LLMs and Agents):
 
-1. **Layer 1 (ML Classification):** The input transcript is first processed by a lightning-fast ML classifier (e.g. TF-IDF + SVM). If the ML indicates the transcript is likely safe, it returns a fast verdict. If it detects potential risk, it triggers the LLM cascade.
+1. **Layer 1 (ML Classification):** The input transcript is first processed by a lightning-fast ML classifier (TF-IDF FeatureUnion + SVM). If the ML indicates the transcript is likely safe, it returns a fast verdict. If it detects potential risk, it triggers the LLM cascade.
 2. **Layer 2 (RAG Search):** The transcript is embedded and searched against a ChromaDB vector database of past vishing calls. The top similar cases are retrieved as context.
 3. **Layer 3 (Multi-Agent Reasoning):** Using **CrewAI**, 4 distinct agents analyze the data sequentially:
    - **Technical Auditor:** Validates the initial ML flag.
@@ -46,10 +57,11 @@ The system uses a sequential hybrid cascade connecting classic Machine Learning 
 To understand how the hybrid AI architecture is implemented, check out these core files in the `backend/` folder:
 
 - `backend/hybrid_engine.py`: The heart of the system. This file acts as the orchestrator, taking the ML output, running the RAG query, invoking the CrewAI agents, and performing the final cross-check logic.
-- `backend/inference.py`: Shows how the classical ML models are invoked.
+- `backend/inference.py`: Shows how the classical ML models are invoked. Also contains `get_explanation` which extracts the top TF-IDF keywords (supports both v1 single-vectorizer and v2 FeatureUnion pipelines).
 - `backend/rag_module.py`: Handles ChromaDB vector storage and similarity search.
 - `backend/agents/agent_definitions.py` & `backend/agents/crew.py`: Contains the CrewAI setup—where the LLM persona prompts, tasks, and sequential workflow are defined.
 - `frontend/src/components/results/`: Look here for the React components that visualize the analysis, specifically how the hybrid cascade outputs are parsed into the UI.
+- `notebooks/02_improved_ml_training.py`: The v2 ML training pipeline with all improvements.
 
 ### Example: How the Models and Agents are Called
 
@@ -77,6 +89,20 @@ if ml_score >= 0.45:
         "similar_cases": similar_cases
     })
 ```
+
+## ML Model — v2 Improvements (2026-04-22)
+
+The SVM classifier was retrained with the following upgrades over the original baseline:
+
+| Change | Detail | Impact |
+|---|---|---|
+| Lemmatization | NLTK WordNetLemmatizer (verb + noun pass) | Reduces vocabulary noise |
+| EDA Augmentation | Synonym replacement on 'safe' minority class (40% extra samples) | Reduces class imbalance |
+| FeatureUnion | char_wb TF-IDF (3-5 grams) + word TF-IDF (1-2 grams) | Captures spelling patterns AND semantic phrases |
+| K-Fold CV | StratifiedKFold, k=5, all folds scored >0.98 | Proves model is not a lucky single split |
+| GridSearchCV | Best C=10.0 found automatically | Optimal hyperparameters for this dataset |
+
+**Result:** F1-macro improved from **0.9809 → 0.9936** (+1.27%)
 
 ## Documentation
 
