@@ -1,17 +1,24 @@
 export default function Footer() {
+  const tags = ['TF-IDF', 'SVM v2', 'Neural Net', 'Whisper', 'ChromaDB', 'CrewAI', 'Ollama', 'RAG']
   return (
-    <footer className="w-full flex flex-col items-center border-t border-[var(--border)] py-6 mt-12">
-      <div className="w-full max-w-[900px] px-6 flex flex-col items-center gap-3">
-        <div className="flex items-center gap-3 flex-wrap justify-center">
-          {['TF-IDF', 'SVM', 'LR', 'RF', 'NN', 'Whisper', 'ChromaDB', 'CrewAI', 'Ollama'].map((tag) => (
-            <span key={tag}
-              className="font-mono text-[8px] tracking-[2px] text-[var(--muted)] border border-[var(--border)] rounded px-2 py-0.5 uppercase">
-              {tag}
-            </span>
+    <footer style={{
+      borderTop: '1px solid rgba(255,255,255,.06)',
+      padding: '28px 24px', marginTop: '32px',
+      background: 'rgba(2,3,5,.7)',
+      backdropFilter: 'blur(12px)',
+    }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+          {tags.map((tag) => (
+            <span key={tag} style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#5A6475',
+              border: '1px solid rgba(255,255,255,.07)', borderRadius: '6px',
+              padding: '3px 10px', background: 'rgba(255,255,255,.03)',
+            }}>{tag}</span>
           ))}
         </div>
-        <div className="font-mono text-[8px] text-[var(--muted)] tracking-[3px]">
-          SHIELDGUARD v2.0 — HYBRID INTELLIGENCE
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: '#2E3440', letterSpacing: '0.5px' }}>
+          ShieldGuard v3.1 · Hybrid Intelligence System
         </div>
       </div>
     </footer>

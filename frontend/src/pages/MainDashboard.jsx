@@ -22,12 +22,20 @@ import RAGSimilarCases from '../components/results/RAGSimilarCases'
 import ActionSteps from '../components/results/ActionSteps'
 import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
-import { CanvasRevealEffect } from '../components/ui/canvas-reveal-effect'
+import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
+
+const STATS = [
+  { val: '99.4%', label: 'ML Accuracy' },
+  { val: 'SVM v2', label: 'Classifier' },
+  { val: 'RAG',   label: 'Pattern DB' },
+  { val: '4',     label: 'AI Agents' },
+  { val: 'XAI',   label: 'Explainable' },
+]
 
 export default function MainDashboard() {
   const [modelChoice, setModelChoice] = useState('SVM')
-  const [inputMode, setInputMode] = useState('text')
+  const [inputMode,   setInputMode]   = useState('text')
   const { analyze, loading, result, error, progress } = useAnalysisStore()
 
   const handleTranscriptReady = useCallback(async (transcript, mode) => {
@@ -35,148 +43,139 @@ export default function MainDashboard() {
     await analyze(transcript, modelChoice, mode)
   }, [modelChoice, analyze])
 
-  const isVishing = result?.verdict?.toLowerCase().includes('vishing') ||
-    result?.verdict?.toLowerCase().includes('hang up')
+  const isVishing = result?.verdict?.toLowerCase().includes('vishing') || result?.verdict?.toLowerCase().includes('hang up')
+  const isSafe    = result?.verdict?.toLowerCase().includes('safe')    || result?.verdict?.toLowerCase().includes('legitimate')
+  const threatClass = result && !loading ? (isVishing ? 'threat-vishing' : isSafe ? 'threat-safe' : '') : ''
 
   return (
-    <div className="min-h-screen flex flex-col w-full relative">
-      {/* 3D Interactive Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <CanvasRevealEffect
-          animationSpeed={3}
-          containerClassName="bg-[var(--bg)]"
-          colors={[
-            [0, 170, 255], // Primary shieldguard blue
-            [232, 32, 60], // Threat red
-          ]}
-          dotSize={2.5}
-          reverse={false}
-          showGradient={true}
+    <div className={`min-h-screen flex flex-col w-full relative ${threatClass}`} style={{ transition: 'box-shadow 0.8s ease' }}>
+
+      {/* Fixed flow field background — fills entire viewport */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+        <NeuralBackground
+          color="#6366f1"
+          trailOpacity={0.12}
+          speed={0.7}
+          particleCount={450}
         />
       </div>
 
-      <div className="relative z-10 flex flex-col flex-1 w-full">
+      {/* All content above the background */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
 
-        <main className="flex-1 w-full flex flex-col items-center">
-          <div className="max-w-[900px] w-full px-6 py-10 animate-fade-up">
-          <HeroSection />
+        <main style={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ maxWidth: '900px', width: '100%', padding: '0 24px 60px' }} className="animate-fade-up">
 
-          {/* Stats strip */}
-          <div className="flex justify-center gap-4 mb-8 flex-wrap">
-            {[
-              ['98.5%', 'ML Accuracy'],
-              ['4+1', 'ML + LLM'],
-              ['RAG', 'Pattern DB'],
-              ['4', 'AI Agents'],
-              ['XAI', 'Explainable'],
-            ].map(([val, label]) => (
-              <div key={label} className="sg-card !p-3 text-center min-w-[100px]">
-                <div className="font-display text-lg font-bold text-[var(--blue)]">{val}</div>
-                <div className="font-mono text-[9px] text-[var(--muted)] tracking-[2px] uppercase mt-0.5">{label}</div>
+            <HeroSection />
+
+            {/* Stats strip */}
+            <div style={{
+              display: 'flex',
+              background: 'rgba(8,10,18,.7)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,.07)',
+              borderRadius: '14px',
+              marginBottom: '28px',
+              overflow: 'hidden',
+            }}>
+              {STATS.map((s, i) => (
+                <div key={s.label} style={{
+                  flex: 1, padding: '16px 12px', textAlign: 'center',
+                  borderRight: i < STATS.length - 1 ? '1px solid rgba(255,255,255,.07)' : 'none',
+                }}>
+                  {/* Value is WHITE, not purple */}
+                  <div style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontWeight: 800, fontSize: '18px', color: '#F8FAFC',
+                  }}>
+                    {s.val}
+                  </div>
+                  <div style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '9px', color: '#5A6475',
+                    letterSpacing: '1px', textTransform: 'uppercase', marginTop: '3px',
+                  }}>
+                    {s.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <StepGuide />
+            <RateLimitBar used={0} />
+            <div style={{ marginBottom: '20px' }}>
+              <ModelSelector value={modelChoice} onChange={setModelChoice} />
+            </div>
+
+            <InputTabs onTranscriptReady={handleTranscriptReady} />
+
+            {/* Loading */}
+            {loading && (
+              <div className="sg-card" style={{ textAlign: 'center', padding: '52px', marginTop: '24px' }}>
+                <div style={{
+                  width: '36px', height: '36px',
+                  border: '3px solid rgba(99,102,241,.2)', borderTopColor: '#6366F1',
+                  borderRadius: '50%', margin: '0 auto 20px',
+                  animation: 'spin 0.8s linear infinite',
+                }} />
+                <div style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700,
+                  fontSize: '16px', color: '#F8FAFC', marginBottom: '6px',
+                }}>
+                  {progress || 'Analysing transcript...'}
+                </div>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#5A6475',
+                }}>
+                  Hybrid analysis may take 30–90 seconds
+                </div>
               </div>
-            ))}
+            )}
+
+            {error && <div style={{ marginTop: '24px' }}><WarnBox>{error}</WarnBox></div>}
+
+            {result && !loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '28px' }} className="animate-fade-up">
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <StatusBadge source={result.source} />
+                </div>
+
+                {result.insufficient_evidence && <WarnBox>{result.insufficient_reason}</WarnBox>}
+                {result.divergence_flag       && <DivergenceWarning />}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />
+                  <RiskGauge   confidence={result.confidence} />
+                </div>
+
+                <ConfidenceBar    confidence={result.confidence} />
+                <PhraseChips      phrases={result.suspicious_phrases} />
+                <XAIPanel         keywords={result.top_keywords} />
+
+                {result.source === 'hybrid' && (
+                  <>
+                    <AIAnalysisCard explanation={result.explanation} scamType={result.scam_type} />
+                    <TacticChips    tactics={result.tactics} />
+                    <RAGSimilarCases cases={result.similar_cases} />
+                    <ActionSteps    steps={result.action_steps} />
+                  </>
+                )}
+
+                {result.source === 'ml_only' && !result.insufficient_evidence && (
+                  <InfoBox>AI explanation unavailable — showing ML analysis only. Start Ollama for full hybrid analysis.</InfoBox>
+                )}
+
+                <HighlightedTranscript html={result.highlighted_transcript} />
+                <SafetyAdvice          isVishing={isVishing} />
+              </div>
+            )}
+
+            <ScanHistory />
           </div>
+        </main>
 
-          <StepGuide />
-          <RateLimitBar used={0} />
-
-          {/* Model selector */}
-          <div className="mb-6">
-            <ModelSelector value={modelChoice} onChange={setModelChoice} />
-          </div>
-
-          {/* Input */}
-          <InputTabs onTranscriptReady={handleTranscriptReady} />
-
-          {/* Loading state */}
-          {loading && (
-            <div className="sg-card text-center py-10 mt-8">
-              <div className="inline-block w-10 h-10 border-2 border-[var(--blue)] border-t-transparent rounded-full mb-4"
-                style={{ animation: 'spin 1s linear infinite' }} />
-              <div className="font-display text-sm text-[var(--blue)] tracking-[3px] uppercase">
-                {progress || 'Processing...'}
-              </div>
-              <div className="font-mono text-[10px] text-[var(--muted)] mt-2 tracking-wider">
-                Please wait — hybrid analysis may take 30-90 seconds
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="mt-8">
-              <WarnBox>{error}</WarnBox>
-            </div>
-          )}
-
-          {/* Results */}
-          {result && !loading && (
-            <div className="space-y-5 mt-8 animate-fade-up">
-              {/* Source badge */}
-              <div className="flex justify-center">
-                <StatusBadge source={result.source} />
-              </div>
-
-              {/* Insufficient evidence */}
-              {result.insufficient_evidence && (
-                <WarnBox>{result.insufficient_reason}</WarnBox>
-              )}
-
-              {/* Divergence warning */}
-              {result.divergence_flag && <DivergenceWarning />}
-
-              {/* Main verdict + gauge */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <VerdictCard
-                  verdict={result.verdict}
-                  confidence={result.confidence}
-                  source={result.source}
-                />
-                <RiskGauge confidence={result.confidence} />
-              </div>
-
-              <ConfidenceBar confidence={result.confidence} />
-
-              {/* Phrases */}
-              <PhraseChips phrases={result.suspicious_phrases} />
-
-              {/* XAI */}
-              <XAIPanel keywords={result.top_keywords} />
-
-              {/* AI Analysis (Phase 2 hybrid only) */}
-              {result.source === 'hybrid' && (
-                <>
-                  <AIAnalysisCard
-                    explanation={result.explanation}
-                    scamType={result.scam_type}
-                  />
-                  <TacticChips tactics={result.tactics} />
-                  <RAGSimilarCases cases={result.similar_cases} />
-                  <ActionSteps steps={result.action_steps} />
-                </>
-              )}
-
-              {/* ML-only fallback info */}
-              {result.source === 'ml_only' && !result.insufficient_evidence && (
-                <InfoBox>
-                  AI explanation unavailable — showing ML analysis only. Start Ollama for full hybrid analysis.
-                </InfoBox>
-              )}
-
-              {/* Highlighted transcript */}
-              <HighlightedTranscript html={result.highlighted_transcript} />
-
-              {/* Safety advice */}
-              <SafetyAdvice isVishing={isVishing} />
-            </div>
-          )}
-
-          <ScanHistory />
-        </div>
-      </main>
-
-      <Footer />
+        <Footer />
       </div>
     </div>
   )

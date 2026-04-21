@@ -2,21 +2,18 @@ import { useEffect, useState } from 'react'
 
 export default function RiskGauge({ confidence }) {
   const [animatedAngle, setAnimatedAngle] = useState(0)
-  const pct = Math.round(confidence * 100)
-  const targetAngle = confidence * 180 // 0-180 degrees
+  const pct         = Math.round(confidence * 100)
+  const targetAngle = confidence * 180
 
-  // Color zones
-  const color = pct >= 70 ? '#e8203c' : pct >= 45 ? '#f0a800' : '#00e87a'
-  const label = pct >= 70 ? 'THREAT' : pct >= 45 ? 'CAUTION' : 'SAFE'
+  const color = pct >= 70 ? '#EF4444' : pct >= 45 ? '#F59E0B' : '#10B981'
+  const label = pct >= 70 ? 'HIGH RISK' : pct >= 45 ? 'CAUTION' : 'LOW RISK'
 
   useEffect(() => {
     let frame
     const start = performance.now()
-    const duration = 1200
     const animate = (now) => {
-      const elapsed = now - start
-      const progress = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
+      const progress = Math.min((now - start) / 1100, 1)
+      const eased    = 1 - Math.pow(1 - progress, 4)
       setAnimatedAngle(eased * targetAngle)
       if (progress < 1) frame = requestAnimationFrame(animate)
     }
@@ -24,80 +21,59 @@ export default function RiskGauge({ confidence }) {
     return () => cancelAnimationFrame(frame)
   }, [targetAngle])
 
-  // SVG parameters
-  const cx = 120, cy = 110, r = 85
-  const circumference = Math.PI * r // half circle
-
-  // Arc for background
-  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
-
-  // Needle rotation
-  const needleAngle = -180 + animatedAngle
-
-  // Zone arcs
-  const zones = [
-    { start: 0, end: 0.44, color: '#00e87a22', stroke: '#00e87a33' },
-    { start: 0.44, end: 0.69, color: '#f0a80022', stroke: '#f0a80033' },
-    { start: 0.69, end: 1, color: '#e8203c22', stroke: '#e8203c33' },
-  ]
+  const cx = 120, cy = 108, r = 82
+  const circumference = Math.PI * r
+  const arcPath       = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`
+  const needleAngle   = -180 + animatedAngle
 
   return (
-    <div className="sg-card flex flex-col items-center py-6">
-      <div className="sec-label mb-3">Risk Assessment</div>
+    <div className="sg-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 24px' }}>
+      {/* Section label — gray */}
+      <div style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
+        color: '#5A6475', marginBottom: '10px', alignSelf: 'flex-start',
+      }}>
+        Risk Assessment
+      </div>
 
-      <svg width="240" height="140" viewBox="0 0 240 140">
-        {/* Zone arcs */}
-        {zones.map((zone, i) => {
-          const startAngle = Math.PI + zone.start * Math.PI
-          const endAngle = Math.PI + zone.end * Math.PI
-          const x1 = cx + r * Math.cos(startAngle)
-          const y1 = cy + r * Math.sin(startAngle)
-          const x2 = cx + r * Math.cos(endAngle)
-          const y2 = cy + r * Math.sin(endAngle)
-          const largeArc = zone.end - zone.start > 0.5 ? 1 : 0
-          return (
-            <path
-              key={i}
-              d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`}
-              fill="none"
-              stroke={zone.stroke}
-              strokeWidth="18"
-              strokeLinecap="round"
-            />
-          )
+      <svg width="240" height="132" viewBox="0 0 240 132">
+        {/* Zones */}
+        {[
+          { s: 0, e: 0.44, c: '#10B98120' },
+          { s: 0.44, e: 0.69, c: '#F59E0B20' },
+          { s: 0.69, e: 1,    c: '#EF444420' },
+        ].map((z, i) => {
+          const sa = Math.PI + z.s * Math.PI, ea = Math.PI + z.e * Math.PI
+          const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa)
+          const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea)
+          return <path key={i} d={`M ${x1} ${y1} A ${r} ${r} 0 ${z.e - z.s > 0.5 ? 1 : 0} 1 ${x2} ${y2}`} fill="none" stroke={z.c} strokeWidth="22" strokeLinecap="butt" />
         })}
 
-        {/* Track */}
-        <path d={arcPath} fill="none" stroke="#112233" strokeWidth="6" strokeLinecap="round" />
+        <path d={arcPath} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="3" />
+        <path d={arcPath} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
+          strokeDasharray={circumference} strokeDashoffset={circumference - (animatedAngle / 180) * circumference}
+          style={{ filter: `drop-shadow(0 0 5px ${color}80)`, transition: 'stroke .5s ease' }} />
 
-        {/* Active arc */}
-        <path
-          d={arcPath}
-          fill="none"
-          stroke={color}
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - (animatedAngle / 180) * circumference}
-          style={{
-            filter: `drop-shadow(0 0 6px ${color}66)`,
-          }}
-        />
-
-        {/* Needle */}
         <g transform={`rotate(${needleAngle}, ${cx}, ${cy})`}>
-          <line x1={cx} y1={cy} x2={cx + r - 15} y2={cy} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-          <circle cx={cx} cy={cy} r="5" fill={color} />
-          <circle cx={cx} cy={cy} r="2.5" fill="var(--bg, #04080f)" />
+          <line x1={cx} y1={cy} x2={cx + r - 14} y2={cy} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+          <circle cx={cx} cy={cy} r="6" fill={color} />
+          <circle cx={cx} cy={cy} r="3" fill="rgba(8,10,18,.9)" />
         </g>
 
-        {/* Center text */}
-        <text x={cx} y={cy - 15} textAnchor="middle" fill={color} fontSize="28" fontFamily="'Orbitron', sans-serif" fontWeight="900">
+        {/* Percent — WHITE, not purple */}
+        <text x={cx} y={cy - 14} textAnchor="middle" fill="#F8FAFC"
+          fontSize="26" fontFamily="'Plus Jakarta Sans', sans-serif" fontWeight="800">
           {pct}%
         </text>
       </svg>
 
-      <div className="font-display text-sm font-bold tracking-[4px] mt-1" style={{ color }}>
+      {/* Label — status color only for this functional element */}
+      <div style={{
+        fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700,
+        fontSize: '12px', letterSpacing: '2px', textTransform: 'uppercase',
+        color, marginTop: '4px', transition: 'color .5s ease',
+      }}>
         {label}
       </div>
     </div>

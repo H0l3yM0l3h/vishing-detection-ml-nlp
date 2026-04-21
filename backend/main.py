@@ -158,6 +158,36 @@ class RegisterRequest(BaseModel):
     password: str
 
 class AnalyzeRequest(BaseModel):
+
+# ═══════════════════════════════════════════════
+# HEALTH CHECK (public — no auth required)
+# ═══════════════════════════════════════════════
+@app.get("/api/health")
+async def health_check(request: Request):
+    """Returns real-time status of all AI components."""
+    state = request.app.state
+    ml_models   = getattr(state, "models",    None)
+    nn_model    = getattr(state, "nn_model",  None)
+    chroma      = getattr(state, "chroma_count", 0)
+    ollama_ok   = getattr(state, "ollama_available", False)
+    whisper_ok  = getattr(state, "whisper_model", None) is not None
+
+    ml_ok = bool(ml_models and len(ml_models) > 0)
+
+    return {
+        "status": "online" if ml_ok else "degraded",
+        "components": {
+            "ml_classifier":  {"ok": ml_ok,    "detail": f"{len(ml_models)} models" if ml_ok else "not loaded"},
+            "neural_network": {"ok": bool(nn_model), "detail": "loaded" if nn_model else "not loaded"},
+            "rag_chromadb":   {"ok": chroma > 0, "detail": f"{chroma} entries"},
+            "llm_ollama":     {"ok": ollama_ok,  "detail": "reachable" if ollama_ok else "not reachable"},
+            "whisper_stt":    {"ok": whisper_ok, "detail": "loaded" if whisper_ok else "lazy (loads on first use)"},
+        },
+        "model_count": len(ml_models) if ml_ok else 0,
+        "version": "3.1",
+    }
+
+
     transcript: str
     model_choice: str = "SVM"
     input_mode: str = "text"
@@ -169,7 +199,7 @@ class AnalyzeRequest(BaseModel):
 # ═══════════════════════════════════════════════
 @app.post("/api/auth/login")
 async def login(req: LoginRequest):
-    username = sanitize_input(req.username, 32)
+    username = sanitize_input(req.username, 32).strip()
 
     # Check lockout
     locked, remaining = is_locked_out(username)

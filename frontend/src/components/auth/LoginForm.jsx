@@ -1,113 +1,99 @@
 import { useState } from 'react'
 import { useAuthStore } from '../../hooks/useAuth'
 
+const inputStyle = {
+  width: '100%', background: 'rgba(5,11,24,.6)',
+  border: '1px solid rgba(255,255,255,.1)', borderRadius: '10px',
+  padding: '11px 16px', color: '#F0F6FF',
+  fontFamily: "'Outfit', sans-serif", fontSize: '15px', outline: 'none',
+  transition: 'border-color .2s, box-shadow .2s',
+}
+
+function Field({ label, ...props }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 500, color: '#94A3B8', fontFamily: "'Outfit', sans-serif" }}>
+        {label}
+      </label>
+      <input
+        {...props}
+        style={{
+          ...inputStyle,
+          borderColor: focused ? 'rgba(99,102,241,.6)' : 'rgba(255,255,255,.1)',
+          boxShadow:   focused ? '0 0 0 3px rgba(99,102,241,.12)' : 'none',
+        }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      />
+    </div>
+  )
+}
+
 export default function LoginForm({ onSwitchToRegister }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const { login, loading, error } = useAuthStore()
-  const [lockInfo, setLockInfo] = useState(null)
-  const [remainingAttempts, setRemainingAttempts] = useState(null)
+  const [lockInfo, setLockInfo]   = useState(null)
+  const [remaining, setRemaining] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const res = await login(username, password)
+    const res = await login(username.trim(), password)
     if (!res.success) {
-      if (res.locked) {
-        setLockInfo({ minutes: res.minutes_remaining })
-      }
-      if (res.remaining_attempts !== undefined) {
-        setRemainingAttempts(res.remaining_attempts)
-      }
+      if (res.locked)                           setLockInfo({ minutes: res.minutes_remaining })
+      if (res.remaining_attempts !== undefined) setRemaining(res.remaining_attempts)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="sec-label mb-4">Operator Login</div>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ marginBottom: '4px' }}>
+        <h2 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '22px', color: '#F0F6FF', marginBottom: '4px' }}>
+          Welcome back
+        </h2>
+        <p style={{ fontFamily: "'Outfit', sans-serif", fontSize: '14px', color: '#94A3B8' }}>
+          Sign in to your ShieldGuard account
+        </p>
+      </div>
 
-      {/* Lockout warning */}
       {lockInfo && (
-        <div className="border border-[var(--red)] rounded-lg p-4 text-center"
-          style={{ background: 'rgba(232,32,60,.06)' }}>
-          <div className="font-display text-sm text-[var(--red)] tracking-wider">ACCOUNT LOCKED</div>
-          <div className="font-mono text-xs text-[var(--muted)] mt-1">
-            Try again in {lockInfo.minutes} minutes
-          </div>
+        <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
+          <div style={{ fontWeight: 700, color: '#FCA5A5', marginBottom: '4px' }}>Account Locked</div>
+          <div style={{ fontSize: '13px', color: '#94A3B8' }}>Try again in {lockInfo.minutes} minute{lockInfo.minutes !== 1 ? 's' : ''}</div>
         </div>
       )}
 
-      {/* Error */}
       {error && !lockInfo && (
-        <div className="border border-[var(--red)] rounded-lg px-4 py-2.5"
-          style={{ background: 'rgba(232,32,60,.06)' }}>
-          <span className="text-sm text-[var(--red)]">{error}</span>
-          {remainingAttempts !== null && (
-            <span className="font-mono text-[10px] text-[var(--muted)] ml-2">
-              ({remainingAttempts} attempts remaining)
-            </span>
-          )}
+        <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)', borderRadius: '10px', padding: '12px 16px' }}>
+          <span style={{ fontSize: '14px', color: '#FCA5A5' }}>{error}</span>
+          {remaining !== null && <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '10px' }}>({remaining} attempts left)</span>}
         </div>
       )}
 
-      {/* Username */}
-      <div>
-        <label className="font-mono text-[10px] text-[var(--muted)] tracking-[2px] uppercase block mb-1.5">
-          Username
-        </label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full bg-[#030a12] border border-[var(--border)] rounded-lg px-4 py-3 text-[var(--text)]
-            font-mono text-sm outline-none transition-all focus:border-[rgba(0,170,255,.5)]
-            focus:shadow-[0_0_18px_rgba(0,170,255,.08)]"
-          placeholder="Enter username"
-          autoComplete="username"
-          required
-        />
-      </div>
+      <Field label="Username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" autoComplete="username" required />
+      <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
 
-      {/* Password */}
-      <div>
-        <label className="font-mono text-[10px] text-[var(--muted)] tracking-[2px] uppercase block mb-1.5">
-          Password
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-[#030a12] border border-[var(--border)] rounded-lg px-4 py-3 text-[var(--text)]
-            font-mono text-sm outline-none transition-all focus:border-[rgba(0,170,255,.5)]
-            focus:shadow-[0_0_18px_rgba(0,170,255,.08)]"
-          placeholder="Enter password"
-          autoComplete="current-password"
-          required
-        />
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full font-display text-[11px] font-bold tracking-[3px] uppercase text-white
-          py-3.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 border-none"
-        style={{
-          background: 'linear-gradient(135deg, #b81530, #801020)',
-          boxShadow: '0 4px 16px rgba(232,32,60,.28)',
-        }}
+      <button type="submit" disabled={loading} style={{
+        width: '100%', padding: '13px', borderRadius: '10px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+        background: loading ? '#374151' : 'linear-gradient(135deg, #6366F1, #818CF8)',
+        color: '#fff', fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '16px',
+        boxShadow: loading ? 'none' : '0 4px 20px rgba(99,102,241,.35)', transition: 'opacity .2s, transform .1s',
+        opacity: loading ? 0.6 : 1,
+      }}
+        onMouseEnter={(e) => { if (!loading) e.target.style.transform = 'translateY(-1px)' }}
+        onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)' }}
       >
-        {loading ? 'AUTHENTICATING...' : 'LOGIN'}
+        {loading ? 'Signing in...' : 'Sign In'}
       </button>
 
-      {/* Switch to register */}
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={onSwitchToRegister}
-          className="font-mono text-[10px] text-[var(--blue)] tracking-wider bg-transparent border-none cursor-pointer
-            hover:text-[var(--text)] transition-colors"
+      <div style={{ textAlign: 'center', paddingTop: '4px' }}>
+        <button type="button" onClick={onSwitchToRegister}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: '14px', color: '#818CF8', transition: 'color .15s' }}
+          onMouseEnter={(e) => { e.target.style.color = '#A5B4FC' }}
+          onMouseLeave={(e) => { e.target.style.color = '#818CF8' }}
         >
-          CREATE NEW ACCOUNT
+          Don't have an account? <strong>Create one</strong>
         </button>
       </div>
     </form>
