@@ -1,12 +1,60 @@
 # ShieldGuard — Complete System Context
-> **Version:** 3.1 — Improved ML Pipeline (v2 SVM promoted)
+> **Version:** 3.3 - ML v3 Limited-Dataset Retraining + ML-first Hybrid
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML v2) + Phase 2 (LLM + RAG + CrewAI) + Phase 3 (React + FastAPI)
+> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Direct Ollama) + Phase 3 (React + FastAPI)
 
 ---
 
 ## Changelog
+
+### v3.3 - 2026-04-29 - ML v3 Limited-Dataset Retraining
+
+**ML training changes:**
+- Added `notebooks/03_limited_dataset_svm_training.py` with `CELL 1`, `CELL 2`, etc. comments so each section can be copied directly into Jupyter Notebook cells.
+- Retrained the active SVM with a leakage-safe workflow: split real data first, augment only the training split, add hard-negative safe examples, add hard-positive vishing examples, tune the threshold on validation data, and evaluate once on the clean held-out test set.
+- Promoted the retrained model to `models/svm_model.pkl`.
+- Saved reproducibility metadata in `models/svm_model_metadata.json` and detailed metrics in `docs/ml_training_v3_metrics.json`.
+- Updated the backend production threshold to `VISHING_THRESHOLD = 0.80` and aligned the benchmark endpoint threshold metadata.
+
+**Verified metrics:**
+- Clean held-out test accuracy: **98.88%**
+- Clean held-out macro F1: **98.69%**
+- Clean held-out balanced accuracy: **99.20%**
+- Clean test confusion matrix: safe `108/108` correct, vishing `245/249` correct.
+- Targeted sanity checks passed for legitimate dentist, bank callback, delivery reminder, OTP threat, legal transfer, and remote-access scam examples.
+- CLI benchmark after retraining: **100%** (10/10 labelled samples).
+
+### v3.2 — 2026-04-23 — Precision Thresholding + Speed Optimisation
+
+**Precision Hardening (research-backed):**
+- Added `VISHING_THRESHOLD = 0.75`: Decision boundary raised from 0.50 to 0.75 to reduce False Positives / alert fatigue. Justified by Provost & Fawcett (2001) cost-sensitive classification framework.
+- Added `REJECT_THRESHOLD = 0.80` (asymmetric): Applied only on vishing predictions via Chow's Classification-with-Reject-Option (C.K. Chow, 1970). If `0.75 ≤ P(vishing) < 0.80`, verdict is `INCONCLUSIVE` and escalated to LLM. Safe predictions pass through without reject gating (Bartlett & Wegkamp, 2008).
+- Added `preprocess_text()` to `inference.py`: Mirrors training pipeline (`normalize_english()` → `lemmatize_text()`). Fixes critical train/inference preprocessing mismatch that caused 97.8% false positive rate on safe calls.
+- Expanded `VISHING_PATTERNS` from 14 → 30 regex patterns: Added tech support scam, crypto/investment, government impersonation, and isolation/secrecy categories.
+
+**Speed Optimisation:**
+- Replaced CrewAI framework with **direct async Ollama HTTP calls** via `httpx`. Eliminates ~5-10s framework overhead per analysis.
+- Consolidated 4 agents → 2 prompts (Forensic Analyst + Safety Guardian). Reduces LLM round-trips from 4 → 2.
+- Added `num_predict: 512` token cap in Ollama presets. Prevents verbose LLM output.
+- Estimated improvement: **60-90s → 15-30s** per hybrid analysis.
+
+**UI Hardening:**
+- Fixed RiskGauge: Now verdict-aware. Safe verdicts show "LOW RISK", inconclusive shows "CAUTION" instead of incorrectly showing "HIGH RISK".
+- Added duplicate submission guard in `useAnalysis.js`: `if (get().loading) return null` prevents multiple concurrent analyses.
+- Analyze button shows "Analyzing..." and disables during processing.
+- Fixed system status hook: Changed `/api/health` → `/api/health_detailed` so the header correctly shows "SYSTEM ONLINE".
+- Updated stats strip: `4 AI Agents` → `2 AI Agents`.
+
+**Testing & Diagnostics:**
+- Added `tests/benchmark.py`: CLI benchmark (10 labelled samples, measures accuracy + latency).
+- Added `GET /api/benchmark` endpoint: Live ML benchmark accessible from the dashboard.
+- Added `SystemDiagnostics.jsx`: Collapsible diagnostics panel in the dashboard with per-sample pass/fail table, metric cards, and citation badges.
+
+**Verified metrics (v3.2 benchmark):**
+- ML Accuracy: **90%** (9/10 correct, 1 false positive on dentist call — mitigated by hybrid LLM layer)
+- ML Latency: **2.0ms avg** (well within 200ms target)
+- Status: **READY FOR USER TESTING**
 
 ### v3.1 — 2026-04-22 — ML Model Upgrade
 
@@ -21,7 +69,7 @@
 
 ### v3.0 — Earlier — React + FastAPI Migration
 - Decoupled Streamlit monolith into React frontend + FastAPI backend.
-- Added JWT authentication, Supabase persistence, CrewAI multi-agent reasoning.
+- Added JWT authentication, Supabase persistence, multi-agent LLM reasoning.
 
 ---
 
@@ -57,12 +105,17 @@ The system has two frontends:
 ┌─────────────────────────────────────────────────────────────────┐
 │  LAYER 1 — ML CLASSIFIER  (Phase 1)                             │
 │                                                                 │
-│  Engine:  FeatureUnion (char_wb + word TF-IDF) + SVM v2         │
-│  Speed:   <100ms (fast, deterministic)                          │
-│  Output:  ml_score (float), ml_label, top_keywords              │
+│  Engine:  FeatureUnion (char_wb + word TF-IDF) + SVM v3         │
+│  Preprocessing:  normalize_english() → lemmatize_text()         │
+│  Speed:   ~2ms (fast, deterministic)                            │
+│  Thresholds:                                                    │
+│    VISHING_THRESHOLD = 0.80 (tuned on v3 validation split)     │
+│    REJECT_THRESHOLD  = 0.80, asymmetric (Chow, 1970)           │
+│  Output:  ml_score, ml_label, top_keywords                     │
 │                                                                 │
-│  if ml_score < 0.45  → ML-ONLY result (skip LLM)               │
-│  if ml_score ≥ 0.45  → proceed to Layer 2                       │
+│  if ml_label = "safe"     → pass through (low-risk decision)   │
+│  if ml_label = "vishing" and conf < 0.80 → INCONCLUSIVE        │
+│  if ml_score ≥ 0.45       → proceed to Layer 2 (hybrid)        │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -77,23 +130,19 @@ The system has two frontends:
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  LAYER 3 — CREWAI MULTI-AGENT  (Phase 2)                        │
+│  LAYER 3 — DIRECT OLLAMA LLM  (Phase 2, v3.2)                   │
 │                                                                 │
-│  LLM:    Llama 3.2 3B via Ollama (local, no API key)            │
-│  Process: Sequential — each agent reads previous output         │
+│  LLM:     Llama 3.2 3B via Ollama (local, no API key)           │
+│  Method:  Direct async HTTP (httpx → /api/generate)             │
+│  Token:   num_predict = 512 (capped output)                     │
 │                                                                 │
-│  Agent A — Technical Auditor                                    │
-│    → Validates if ML flag is justified or false positive        │
+│  Prompt 1 — Forensic Analyst                                    │
+│    → Validates ML flag + classifies scam type                   │
 │                                                                 │
-│  Agent B — Pattern Detective                                    │
-│    → Classifies scam type using transcript + RAG results        │
+│  Prompt 2 — Safety Guardian                                     │
+│    → Detects tactics + final verdict + action steps             │
 │                                                                 │
-│  Agent C — Psychology Profiler                                  │
-│    → Identifies social engineering tactics (URGENCY, FEAR, etc) │
-│                                                                 │
-│  Agent D — Safety Guardian                                      │
-│    → Produces user-facing verdict + explanation + action steps  │
-│                                                                 │
+│  Total: 2 LLM calls (down from 4 in v3.0/v3.1)                 │
 │  Output:  verdict, explanation, scam_type, tactics, actions     │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
@@ -124,9 +173,9 @@ The system has two frontends:
 | Speech-to-Text | OpenAI Whisper | base model |
 | RAG Database | ChromaDB | ≥0.5.0 |
 | RAG Embeddings | sentence-transformers | all-MiniLM-L6-v2 |
-| Agent Framework | CrewAI | ≥0.28.0 |
+| Agent Framework | Direct async HTTP (httpx) | replaced CrewAI in v3.2 |
 | LLM Backend | Ollama | llama3.2:3b (local) |
-| LLM Interface | LangChain + langchain-ollama | ≥0.2.0 |
+| LLM Interface | httpx AsyncClient → /api/generate | removed LangChain in v3.2 |
 | Database | Supabase (PostgreSQL) | Cloud |
 | Authentication | bcrypt + JWT (python-jose) | — |
 | Audio Processing | pydub + ffmpeg | — |
@@ -236,15 +285,15 @@ The system has two frontends:
 ## ML Models
 
 ### Training Data
-- **Dataset:** 1,785 labeled call transcripts (before EDA) + ~214 augmented 'safe' samples — `data/english_dataset_final_v2.csv`
-- **Split:** 75/25 train/test (stratified)
+- **Dataset:** 1,781 cleaned/deduplicated labeled call transcripts from `data/english_dataset_final_v2.csv`
+- **Split:** Real data split into train/validation/test before any augmentation
 - **Labels:** "vishing" and "safe"
-- **Preprocessing (v2):** ASCII normalization → NLTK Lemmatization → FeatureUnion TF-IDF
+- **Preprocessing (v3):** ASCII normalization → NLTK Lemmatization → FeatureUnion TF-IDF
 
-### Active Models (v2 — Production)
+### Active Models (v3 - Production)
 | Model | File | Accuracy | F1-macro | Note |
 |---|---|---|---|---|
-| SVM v2 | `models/svm_model.pkl` | **99.4%** | **0.9936** | FeatureUnion (char+word) + CalibratedLinearSVC (C=10) |
+| SVM v3 | `models/svm_model.pkl` | **98.88%** | **0.9869** | FeatureUnion (char+word) + calibrated LinearSVC (best C=2.0, threshold=0.80) |
 | Neural Network | `models/neural_network.keras` | ~98.7% | ~0.983 | Keras CNN, unchanged from v1 |
 
 ### Legacy Models (v1 — Reference Only)
@@ -256,23 +305,23 @@ Moved to `models/legacy/` — still loaded by `models_loader.py` for backward co
 | Random Forest | `models/legacy/rf_model_v1.pkl` | ~97.8% | — |
 | Vectorizer | `models/legacy/vectorizer_v1.pkl` | — | Standalone TF-IDF (no longer needed in v2) |
 
-### v2 Training Improvements
+### v3 Training Improvements
 | Improvement | Detail | Result |
 |---|---|---|
-| Lemmatization | NLTK WordNetLemmatizer (verb pass + noun pass) | Normalized vocabulary, denser feature matrix |
-| EDA Augmentation | Synonym replacement on 'safe' class only (AUG_RATIO=0.40) | Reduced class imbalance |
-| FeatureUnion | char_wb TF-IDF (3-5, 25K feats) + word TF-IDF (1-2, 15K feats) | 40K combined features |
-| K-Fold CV | StratifiedKFold k=5 on training set | Proved stability: all folds F1 > 0.98 |
-| GridSearchCV | C in {0.05, 0.1, 0.5, 1.0, 5.0, 10.0}, 5-fold | Best C=10.0 selected automatically |
+| Leakage-safe split | Split real data before augmentation | Clean validation/test metrics |
+| Train-only EDA | Synonym replacement only on training safe class | Better safe recall without contaminating evaluation |
+| Hard examples | Added safe callback/reminder examples and vishing pressure scripts to train only | Reduced false positives on legitimate calls |
+| FeatureUnion | char_wb TF-IDF + word TF-IDF | Captures spelling patterns and semantic phrases |
+| GridSearchCV | Stratified CV over SVM C values | Best C=2.0 selected automatically |
 
 ### Inference Interface
-- **SVM v2:** `model.predict([text])` → label, `model.predict_proba([text])` → probabilities
+- **SVM v3:** `run_inference_detailed()` returns label, confidence, `vishing_probability`, `safe_probability`, and ML risk band
   - The pipeline internally applies FeatureUnion vectorization — no separate vectorizer call needed.
 - **Neural Network:** `nn.predict(tf.constant([text])) → float` (sigmoid, >0.5 = vishing)
 
 ### Explainability (XAI)
 - **SVM:** TF-IDF coefficient extraction via `get_explanation()` in `inference.py`
-  - v2-aware: automatically detects FeatureUnion vs single-TF-IDF pipeline structure
+  - FeatureUnion-aware: automatically detects the active pipeline structure
   - Feature names prefixed with `[char]` or `[word]` to indicate which vectorizer contributed
 - Identifies top-5 keywords contributing most to the prediction
 - Displayed as horizontal bar chart in frontend
@@ -290,26 +339,25 @@ Moved to `models/legacy/` — still loaded by `models_loader.py` for backward co
 
 ---
 
-## Multi-Agent System (CrewAI)
+## AI Review System (Direct Ollama)
 
-### Agents
-| Agent | Role | Output |
+### Prompts
+| Prompt | Role | Output |
 |---|---|---|
-| Technical Auditor | Validates ML flag (confirms or challenges) | "ML flag CONFIRMED" or "ML flag UNCERTAIN" |
-| Pattern Detective | Classifies scam type using transcript + RAG | Scam type + reasoning |
-| Psychology Profiler | Detects social engineering tactics | List of tactics with evidence |
-| Safety Guardian | Produces final user-facing verdict | VERDICT, SCAM_TYPE, TACTICS, EXPLANATION, ACTION_STEPS |
+| Forensic Analyst | Reviews ML output with transcript and RAG context | scam type, evidence, ML alignment |
+| Safety Guardian | Produces user-facing explanation and next steps | verdict, tactics, explanation, action steps |
 
 ### Configuration
-- **LLM:** `ollama/llama3.2:3b` (string identifier for CrewAI 1.x)
-- **Process:** Sequential (each agent sees previous agent's output)
+- **LLM:** `llama3.2:3b` through local Ollama
+- **Process:** Direct async `httpx` calls to `/api/generate`
+- **Guardrail:** The LLM is advisory and cannot silently replace strong ML evidence.
 - **Fallback:** If Ollama is offline, returns ML-only result with graceful message
 
 ---
 
 ## Vishing Detection Patterns
 
-14 regex patterns detect suspicious phrases:
+30 regex patterns detect suspicious phrases:
 - Account threats: `account.{0,15}(suspend|block|freeze|close|terminat)`
 - Identity verification: `(verify|confirm).{0,15}(account|identity|detail|information)`
 - Urgency language: `(urgent|immediately|right now|act now|limited time|within \d+ hour)`
@@ -342,15 +390,15 @@ VishingDetection/
 │   ├── main.py                   ← FastAPI app: lifespan, endpoints, JWT auth
 │   ├── models_loader.py          ← ML model loading (joblib, keras)
 │   ├── inference.py              ← run_inference, get_explanation, detect_suspicious_phrases
-│   ├── hybrid_engine.py          ← ML→RAG→CrewAI cascade orchestrator
+│   ├── hybrid_engine.py          ← ML→RAG→direct Ollama cascade orchestrator
 │   ├── rag_module.py             ← ChromaDB scam library + similarity search
 │   ├── llm_config.py             ← Ollama LLM configuration
 │   ├── database.py               ← Supabase client + all DB functions
 │   ├── auth.py                   ← Password hashing, validation, sanitization
 │   ├── agents/
 │   │   ├── __init__.py
-│   │   ├── agent_definitions.py  ← 4 CrewAI agent definitions
-│   │   └── crew.py               ← Crew assembly, task prompting, output parsing
+│   │   ├── agent_definitions.py  ← legacy agent definitions kept for reference
+│   │   └── crew.py               ← direct Ollama prompts and output parsing
 │   ├── requirements.txt
 │   └── .env                      ← Environment variables (gitignored)
 │
@@ -392,7 +440,8 @@ VishingDetection/
 │   └── agents/
 │
 ├── models/                       ← Trained ML models
-│   ├── svm_model.pkl             ← ACTIVE: SVM v2 (FeatureUnion, C=10, Lemma+EDA)
+│   ├── svm_model.pkl             ← ACTIVE: SVM v3 (FeatureUnion, C=2.0, threshold=0.80)
+│   ├── svm_model_metadata.json   ← v3 training metrics and threshold metadata
 │   ├── neural_network.keras      ← ACTIVE: Keras CNN (unchanged from v1)
 │   └── legacy/                   ← v1 models (reference / backward compat)
 │       ├── svm_model_v1.pkl
@@ -408,12 +457,14 @@ VishingDetection/
 │   └── raw/                          ← Raw audio & source data (gitignored)
 │
 ├── docs/                         ← Documentation & reference files
+│   ├── ml_training_v3_metrics.json ← v3 validation/test metrics
 │   ├── supabase_schema.sql       ← Database schema
 │   └── requirements_streamlit.txt ← Legacy Streamlit dependencies
 │
 ├── notebooks/                    ← Training notebooks and scripts
 │   ├── 01_baseline_text_classification.ipynb  ← v1 baseline (SVM/LR/RF/NN)
-│   ├── 02_improved_ml_training.py             ← v2 training (Lemma+EDA+FeatureUnion+KFold+Grid)
+│   ├── 02_improved_ml_training.py             ← previous v2 training
+│   ├── 03_limited_dataset_svm_training.py     ← v3 Jupyter-copy training script
 │   ├── 02_prepare_korccvi.ipynb
 │   ├── 03_prepare_kaggle_voice.ipynb
 │   ├── 04_index_kaggle_audio.ipynb

@@ -1,12 +1,28 @@
 import { useEffect, useState } from 'react'
 
-export default function RiskGauge({ confidence }) {
+export default function RiskGauge({ confidence, verdict = '', vishingProbability = null }) {
   const [animatedAngle, setAnimatedAngle] = useState(0)
-  const pct         = Math.round(confidence * 100)
-  const targetAngle = confidence * 180
+  const pct = Math.round(confidence * 100)
+  const mlRiskPct = Math.round((vishingProbability ?? confidence) * 100)
 
-  const color = pct >= 70 ? '#EF4444' : pct >= 45 ? '#F59E0B' : '#10B981'
-  const label = pct >= 70 ? 'HIGH RISK' : pct >= 45 ? 'CAUTION' : 'LOW RISK'
+  // Determine actual risk based on verdict + confidence
+  const v = (verdict || '').toLowerCase()
+  const isSafe    = v.includes('safe') || v.includes('legitimate')
+  const isInconclusive = v.includes('inconclusive')
+
+  // For safe verdicts: invert — high confidence safe = LOW risk
+  // For inconclusive: always CAUTION
+  // For vishing: confidence = risk
+  const riskPct = vishingProbability !== null
+                ? mlRiskPct
+                : isSafe ? Math.max(0, 100 - pct)
+                : isInconclusive ? 45
+                : pct
+
+  const targetAngle = (riskPct / 100) * 180
+
+  const color = riskPct >= 70 ? '#EF4444' : riskPct >= 45 ? '#F59E0B' : '#10B981'
+  const label = riskPct >= 70 ? 'HIGH RISK' : riskPct >= 45 ? 'CAUTION' : 'LOW RISK'
 
   useEffect(() => {
     let frame
@@ -64,7 +80,7 @@ export default function RiskGauge({ confidence }) {
         {/* Percent — WHITE, not purple */}
         <text x={cx} y={cy - 14} textAnchor="middle" fill="#F8FAFC"
           fontSize="26" fontFamily="'Plus Jakarta Sans', sans-serif" fontWeight="800">
-          {pct}%
+          {riskPct}%
         </text>
       </svg>
 

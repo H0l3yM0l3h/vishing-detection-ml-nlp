@@ -3,18 +3,20 @@ import api from '../../api/client'
 import { Textarea } from '../ui/textarea'
 import { LiquidMetalButton } from '../ui/liquid-metal-button'
 import { useTranscribeStore } from '../../hooks/useTranscribe'
+import { useAnalysisStore } from '../../hooks/useAnalysis'
 
 export default function TranscriptInput({ onTranscriptReady }) {
   const [text, setText] = useState('')
   const [samples, setSamples] = useState(null)
   const id = useId()
+  const loading = useAnalysisStore((s) => s.loading)
 
   useEffect(() => {
     api.get('/samples').then((r) => setSamples(r.data)).catch(() => {})
   }, [])
 
   const handleAnalyze = () => {
-    if (text.trim().length > 0) onTranscriptReady(text.trim(), 'text')
+    if (text.trim().length > 0 && !loading) onTranscriptReady(text.trim(), 'text')
   }
 
   return (
@@ -134,9 +136,9 @@ export default function TranscriptInput({ onTranscriptReady }) {
 
       {/* Analyze button — Liquid Metal */}
       <LiquidMetalButton
-        label="Analyze Transcript"
+        label={loading ? 'Analyzing...' : 'Analyze Transcript'}
         onClick={handleAnalyze}
-        disabled={!text.trim()}
+        disabled={!text.trim() || loading}
         fullWidth
       />
     </div>

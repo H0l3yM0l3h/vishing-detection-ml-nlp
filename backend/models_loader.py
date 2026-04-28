@@ -4,13 +4,15 @@ models_loader.py — ML model loading for ShieldGuard backend
 Extracted from streamlit_app.py. Uses the same loading calls
 (joblib.load, tf.keras.models.load_model) with no changes.
 
-[v2 update — 2026-04-22]
+[v3 update - 2026-04-29]
   Active model layout:
 
     models/
-      svm_model.pkl            <- PROMOTED: Improved SVM v2
-                                  (FeatureUnion char+word TF-IDF, C=10,
-                                   Lemmatization + EDA, K-Fold validated)
+      svm_model.pkl            <- PROMOTED: SVM v3
+                                  (FeatureUnion char+word TF-IDF, C=2.0,
+                                   Lemmatization, train-only augmentation,
+                                   validation-tuned threshold=0.80)
+      svm_model_metadata.json  <- v3 training metrics and threshold metadata
       neural_network.keras     <- Unchanged
 
     models/legacy/
@@ -20,7 +22,7 @@ Extracted from streamlit_app.py. Uses the same loading calls
       vectorizer_v1.pkl        <- Standalone TF-IDF (v1 only)
       neural_network_v1.h5
 
-  NOTE: The v2 SVM pipeline embeds its own FeatureUnion (char_wb + word
+  NOTE: The v3 SVM pipeline embeds its own FeatureUnion (char_wb + word
   TF-IDF) internally, so vectorizer.pkl is no longer required at inference
   time.  The vectorizer is loaded optionally below for any downstream code
   that may still reference it; a warning is logged if the file is absent.
@@ -53,20 +55,20 @@ def load_all_models(models_dir: str | Path) -> tuple:
     """
     models_dir = Path(models_dir)
 
-    # --- Vectorizer (optional in v2 — baked into SVM FeatureUnion) -----------
+    # --- Vectorizer (optional in v3 - baked into SVM FeatureUnion) -----------
     vectorizer_path = models_dir / "vectorizer.pkl"
     if vectorizer_path.exists():
         vectorizer = joblib.load(vectorizer_path)
     else:
         logger.warning(
             "vectorizer.pkl not found in %s. "
-            "This is expected for the v2 SVM pipeline which embeds its own "
+            "This is expected for the v3 SVM pipeline which embeds its own "
             "FeatureUnion. Returning None for vectorizer.",
             models_dir,
         )
         vectorizer = None
 
-    # --- Primary ML model (SVM v2) -------------------------------------------
+    # --- Primary ML model (SVM v3) -------------------------------------------
     ml_models = {
         "SVM": joblib.load(models_dir / "svm_model.pkl"),
     }
@@ -98,4 +100,3 @@ def load_whisper():
     """Load Whisper base model for audio transcription."""
     import whisper
     return whisper.load_model("base")
-

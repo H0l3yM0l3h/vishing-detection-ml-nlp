@@ -24,9 +24,9 @@ npm run dev
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------| 
-| ML Classifier | TF-IDF (FeatureUnion: char+word) + SVM | Fast classification (99.4% accuracy) |
+| ML Classifier | TF-IDF (FeatureUnion: char+word) + calibrated SVM v3 | Fast ML-first classification (98.88% clean-test accuracy) |
 | RAG Search | ChromaDB + MiniLM-L6-v2 | Historical scam pattern matching |
-| Multi-Agent LLM | CrewAI + Ollama (Llama 3.2 3B) | Verdict reasoning with 4 AI agents |
+| AI Reviewer | Direct Ollama (Llama 3.2 3B) + structured prompts | Explanation and ML disagreement review without overriding strong ML evidence |
 
 ## Features
 
@@ -41,56 +41,71 @@ npm run dev
 
 ## How It Works (System Flow)
 
-The system uses a sequential hybrid cascade connecting classic Machine Learning with Generative AI (LLMs and Agents):
+The system uses an ML-first hybrid cascade. The machine learning model owns the numeric risk score and primary verdict; the LLM layer reviews and explains the result without silently replacing strong ML evidence.
 
-1. **Layer 1 (ML Classification):** The input transcript is first processed by a lightning-fast ML classifier (TF-IDF FeatureUnion + SVM). If the ML indicates the transcript is likely safe, it returns a fast verdict. If it detects potential risk, it triggers the LLM cascade.
+1. **Layer 1 (ML Classification):** The input transcript is first processed by a calibrated SVM using TF-IDF FeatureUnion features. It returns `P(vishing)`, `P(safe)`, an ML label, and TF-IDF feature signals.
 2. **Layer 2 (RAG Search):** The transcript is embedded and searched against a ChromaDB vector database of past vishing calls. The top similar cases are retrieved as context.
-3. **Layer 3 (Multi-Agent Reasoning):** Using **CrewAI**, 4 distinct agents analyze the data sequentially:
-   - **Technical Auditor:** Validates the initial ML flag.
-   - **Pattern Detective:** Classifies the scam type using the transcript and RAG results.
-   - **Psychology Profiler:** Detects social engineering tactics (Fear, Urgency, Authority).
-   - **Safety Guardian:** Consolidates the findings into a final user-friendly verdict and actionable steps.
-4. **Cross-Check:** The final LLM verdict is cross-checked against the initial ML result. If there's a strong disagreement (Divergence Detection), the resulting verdict is flagged as "Suspicious — Unconfirmed".
+3. **Layer 3 (AI Review):** Direct Ollama prompts produce structured advisory fields: scam type, tactics, plain-language explanation, action steps, and whether the AI supports or questions the ML result.
+4. **ML-first cross-check:** Strong ML results are preserved. If AI/rules disagree with ML, the system flags the case as `SUSPICIOUS - UNCONFIRMED` instead of letting the LLM silently overwrite the model.
 
 ## Codebase Guide (Where to Look)
 
 To understand how the hybrid AI architecture is implemented, check out these core files in the `backend/` folder:
 
-- `backend/hybrid_engine.py`: The heart of the system. This file acts as the orchestrator, taking the ML output, running the RAG query, invoking the CrewAI agents, and performing the final cross-check logic.
-- `backend/inference.py`: Shows how the classical ML models are invoked. Also contains `get_explanation` which extracts the top TF-IDF keywords (supports both v1 single-vectorizer and v2 FeatureUnion pipelines).
+- `backend/hybrid_engine.py`: The heart of the system. This file keeps ML as the primary decision layer, runs RAG retrieval, invokes the direct Ollama reviewer, and performs the final cross-check logic.
+- `backend/inference.py`: Shows how the classical ML model is invoked. Also contains `get_explanation` which extracts the top TF-IDF keywords from the FeatureUnion pipeline.
 - `backend/rag_module.py`: Handles ChromaDB vector storage and similarity search.
-- `backend/agents/agent_definitions.py` & `backend/agents/crew.py`: Contains the CrewAI setup—where the LLM persona prompts, tasks, and sequential workflow are defined.
+- `backend/agents/crew.py`: Contains the direct Ollama prompt workflow that produces structured advisory JSON without overriding strong ML evidence.
 - `frontend/src/components/results/`: Look here for the React components that visualize the analysis, specifically how the hybrid cascade outputs are parsed into the UI.
-- `notebooks/02_improved_ml_training.py`: The v2 ML training pipeline with all improvements.
+- `notebooks/03_limited_dataset_svm_training.py`: The v3 limited-dataset training pipeline with `CELL 1`, `CELL 2`, etc. comments for easy Jupyter copy/paste.
 
 ### Example: How the Models and Agents are Called
 
 Here is a simplified snippet demonstrating the flow inside `hybrid_engine.py`:
 
 ```python
-from inference import run_inference
+from inference import run_inference_detailed
 from rag_module import query_similar_scams
 from agents.crew import run_crew
 
-# 1. Classical ML Inference
-# Returns a label (e.g., 'vishing') and a confidence score (e.g., 0.94)
-ml_label, ml_score = run_inference(transcript, "SVM", models, nn_model)
+# 1. Classical ML inference remains the primary verdict source.
+ml_result = run_inference_detailed(transcript, "SVM", models, nn_model)
 
-# 2. Threshold Check
-if ml_score >= 0.45:
-    # 3. RAG Retrieval (Look up past scams)
-    similar_cases = query_similar_scams(transcript, n_results=2)
-    
-    # 4. Multi-Agent Reasoning (Run the CrewAI agents sequentially)
-    final_result = run_crew({
-        "transcript": transcript,
-        "ml_score": ml_score,
-        "ml_label": ml_label,
-        "similar_cases": similar_cases
-    })
+# 2. RAG retrieval adds past-case context for explanation.
+similar_cases = query_similar_scams(transcript, n_results=2)
+
+# 3. Direct Ollama review returns advisory JSON only.
+ai_review = await run_crew({
+    "transcript": transcript,
+    "ml_score": ml_result["confidence"],
+    "ml_label": ml_result["label"],
+    "similar_cases": similar_cases,
+})
 ```
 
-## ML Model — v2 Improvements (2026-04-22)
+## ML Model - v3 Limited-Dataset Training (2026-04-29)
+
+The active production model is now retrained with a leakage-safe limited-dataset workflow:
+
+| Change | Detail | Impact |
+|---|---|---|
+| Split before augmentation | Real data is split into train/validation/test before synthetic examples are added | Prevents leakage into evaluation |
+| Train-only augmentation | EDA synonym replacement is applied only to the safe training class | Improves minority-class coverage |
+| Hard examples | Adds realistic safe bank/delivery/appointment reminders and vishing pressure scripts to training only | Reduces false positives on legitimate calls |
+| Calibrated SVM | LinearSVC wrapped with probability calibration | Produces usable `P(vishing)` and `P(safe)` |
+| Validation threshold tuning | Threshold selected on validation data, then locked for the clean test set | Keeps verdict logic aligned with measured performance |
+
+**Clean held-out test result:** 98.88% accuracy, 98.69% macro F1, 99.20% balanced accuracy.
+
+**Clean test confusion matrix:** safe `108/108` correct, vishing `245/249` correct.
+
+Training assets:
+- `notebooks/03_limited_dataset_svm_training.py`: copy/paste-ready Jupyter training script with `CELL 1`, `CELL 2`, etc. comments.
+- `models/svm_model.pkl`: promoted production model.
+- `models/svm_model_metadata.json`: threshold, metrics, and training notes.
+- `docs/ml_training_v3_metrics.json`: validation/test metrics and sanity-check outputs.
+
+## Previous ML Model - v2 Improvements (2026-04-22)
 
 The SVM classifier was retrained with the following upgrades over the original baseline:
 

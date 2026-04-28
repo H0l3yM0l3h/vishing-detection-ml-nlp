@@ -1,47 +1,87 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+function cleanFeatureName(feature) {
+  return String(feature || '')
+    .replace(/^\[(word|char)\]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 export default function XAIPanel({ keywords }) {
   if (!keywords || keywords.length === 0) return null
 
-  const data = keywords.map(([word, weight]) => ({
-    word,
-    weight: Math.abs(weight),
-    positive: weight > 0,
-  }))
+  const rows = keywords
+    .map(([feature, weight]) => ({
+      feature: cleanFeatureName(feature),
+      rawWeight: Number(weight) || 0,
+      strength: Math.abs(Number(weight) || 0),
+      direction: Number(weight) >= 0 ? 'vishing' : 'safe',
+    }))
+    .filter((row) => row.feature)
+
+  if (rows.length === 0) return null
+
+  const maxStrength = Math.max(...rows.map((row) => row.strength), 0.0001)
 
   return (
     <div className="sg-card !p-4">
       <div className="sec-label mb-3">TF-IDF Feature Analysis</div>
-      <div className="font-mono text-[10px] text-[var(--muted)] mb-3 tracking-wider">
-        TOP CONTRIBUTING KEYWORDS
+      <div className="font-mono text-[10px] text-[var(--muted)] mb-4 tracking-wider">
+        TOP MODEL SIGNALS
       </div>
-      <ResponsiveContainer width="100%" height={data.length * 36 + 20}>
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 20, bottom: 0, left: 60 }}>
-          <XAxis type="number" hide />
-          <YAxis
-            type="category"
-            dataKey="word"
-            tick={{ fill: '#4a7090', fontFamily: "'Share Tech Mono', monospace", fontSize: 11 }}
-            width={55}
-          />
-          <Tooltip
-            contentStyle={{
-              background: '#08111c',
-              border: '1px solid #112233',
-              borderRadius: 8,
-              fontFamily: "'Share Tech Mono', monospace",
-              fontSize: 11,
-              color: '#d8eaf8',
-            }}
-            formatter={(val) => [val.toFixed(3), 'Weight']}
-          />
-          <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={14}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.positive ? '#e8203c' : '#00aaff'} fillOpacity={0.7} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {rows.map((row, index) => {
+          const pct = Math.max(5, Math.round((row.strength / maxStrength) * 100))
+          const isVishing = row.direction === 'vishing'
+          const color = isVishing ? '#e8203c' : '#00aaff'
+          const label = isVishing ? 'Vishing signal' : 'Safe signal'
+
+          return (
+            <div key={`${row.feature}-${index}`} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 96px', gap: '12px', alignItems: 'center' }}>
+              <div
+                title={row.feature}
+                style={{
+                  fontFamily: "'Share Tech Mono', monospace",
+                  fontSize: '12px',
+                  color: '#d8eaf8',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {row.feature}
+              </div>
+
+              <div style={{
+                height: '10px',
+                borderRadius: '999px',
+                background: 'rgba(255,255,255,.06)',
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,.06)',
+              }}>
+                <div style={{
+                  width: `${pct}%`,
+                  height: '100%',
+                  borderRadius: '999px',
+                  background: color,
+                  opacity: 0.82,
+                  boxShadow: `0 0 16px ${color}55`,
+                }} />
+              </div>
+
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '10px',
+                color,
+                textAlign: 'right',
+                textTransform: 'uppercase',
+                letterSpacing: '.6px',
+              }}>
+                {label}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

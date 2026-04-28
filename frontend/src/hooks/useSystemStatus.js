@@ -27,7 +27,7 @@ export function useSystemStatus() {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-      const res = await fetch('/api/health', { signal: controller.signal })
+      const res = await fetch('/api/health_detailed', { signal: controller.signal })
       clearTimeout(timer)
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
