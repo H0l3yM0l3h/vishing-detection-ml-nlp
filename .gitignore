@@ -31,12 +31,14 @@ data/scam_library/
 .ipynb_checkpoints/
 
 # IDE / tool config
+.codex/
 .qodo/
 .sixth/
 .devcontainer/
 
 # Backend
 backend/.env
+backend/package-lock.json
 
 # Frontend
 frontend/node_modules/

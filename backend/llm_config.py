@@ -12,10 +12,11 @@ from langchain_ollama import OllamaLLM
 OLLAMA_BASE_URL = "http://localhost:11434"
 
 # ── Model presets ────────────────────────────────
+# num_predict caps the max output tokens; shorter = faster response
 MODEL_PRESETS = {
-    "llama3.2:3b":  {"num_ctx": 4096,  "temperature": 0.1},
-    "qwen2.5:32b":  {"num_ctx": 4096,  "temperature": 0.1},
-    "llama3.3:70b": {"num_ctx": 4096,  "temperature": 0.1},
+    "llama3.2:3b":  {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
+    "qwen2.5:32b":  {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
+    "llama3.3:70b": {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
 }
 
 DEFAULT_MODEL = "llama3.2:3b"

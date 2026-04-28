@@ -5,6 +5,7 @@ import HeroSection from '../components/dashboard/HeroSection'
 import StepGuide from '../components/dashboard/StepGuide'
 import RateLimitBar from '../components/dashboard/RateLimitBar'
 import ScanHistory from '../components/dashboard/ScanHistory'
+import SystemDiagnostics from '../components/dashboard/SystemDiagnostics'
 import InputTabs from '../components/input/InputTabs'
 import ModelSelector from '../components/ui/ModelSelector'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -29,7 +30,7 @@ const STATS = [
   { val: '99.4%', label: 'ML Accuracy' },
   { val: 'SVM v2', label: 'Classifier' },
   { val: 'RAG',   label: 'Pattern DB' },
-  { val: '4',     label: 'AI Agents' },
+  { val: '2',     label: 'AI Agents' },
   { val: 'XAI',   label: 'Explainable' },
 ]
 
@@ -146,7 +147,11 @@ export default function MainDashboard() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />
-                  <RiskGauge   confidence={result.confidence} />
+                  <RiskGauge
+                    confidence={result.confidence}
+                    verdict={result.verdict}
+                    vishingProbability={result.vishing_probability}
+                  />
                 </div>
 
                 <ConfidenceBar    confidence={result.confidence} />
@@ -172,6 +177,7 @@ export default function MainDashboard() {
             )}
 
             <ScanHistory />
+            <SystemDiagnostics />
           </div>
         </main>
 

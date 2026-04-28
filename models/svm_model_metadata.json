@@ -1,0 +1,129 @@
+{
+  "model_version": "svm_v3_limited_dataset",
+  "trained_at": "2026-04-28T16:18:10.476617+00:00",
+  "dataset_path": "data\\english_dataset_final_v2.csv",
+  "dataset_rows_after_cleaning": 1781,
+  "label_counts_after_cleaning": {
+    "safe": 537,
+    "vishing": 1244
+  },
+  "split_counts": {
+    "train_real": {
+      "vishing": 796,
+      "safe": 343
+    },
+    "validation_real": {
+      "vishing": 199,
+      "safe": 86
+    },
+    "test_real": {
+      "vishing": 249,
+      "safe": 108
+    },
+    "train_after_augmentation": {
+      "vishing": 802,
+      "safe": 484
+    }
+  },
+  "methodology": [
+    "real dataset split before augmentation",
+    "EDA synonym augmentation applied only to training safe class",
+    "hard-negative safe examples added only to training split",
+    "FeatureUnion char_wb TF-IDF plus word TF-IDF with English stop words",
+    "LinearSVC with class_weight=balanced and sigmoid calibration",
+    "threshold tuned on validation split and final metrics reported on clean test split"
+  ],
+  "best_c": 2.0,
+  "best_cv_f1_macro": 0.9875,
+  "decision_threshold": 0.8,
+  "validation_metrics": {
+    "split": "validation",
+    "threshold": 0.8,
+    "accuracy": 0.9825,
+    "balanced_accuracy": 0.9841,
+    "f1_macro": 0.9794,
+    "safe_precision": 0.9551,
+    "safe_recall": 0.9884,
+    "safe_f1": 0.9714,
+    "vishing_precision": 0.9949,
+    "vishing_recall": 0.9799,
+    "vishing_f1": 0.9873,
+    "confusion_matrix": [
+      [
+        85,
+        1
+      ],
+      [
+        4,
+        195
+      ]
+    ]
+  },
+  "test_metrics": {
+    "split": "test",
+    "threshold": 0.8,
+    "accuracy": 0.9888,
+    "balanced_accuracy": 0.992,
+    "f1_macro": 0.9869,
+    "safe_precision": 0.9643,
+    "safe_recall": 1.0,
+    "safe_f1": 0.9818,
+    "vishing_precision": 1.0,
+    "vishing_recall": 0.9839,
+    "vishing_f1": 0.9919,
+    "confusion_matrix": [
+      [
+        108,
+        0
+      ],
+      [
+        4,
+        245
+      ]
+    ]
+  },
+  "targeted_sanity_checks": [
+    {
+      "case": "dentist appointment",
+      "expected": "safe",
+      "got": "safe",
+      "vishing_probability": 0.2321,
+      "pass": true
+    },
+    {
+      "case": "bank callback safe",
+      "expected": "safe",
+      "got": "safe",
+      "vishing_probability": 0.5575,
+      "pass": true
+    },
+    {
+      "case": "delivery reminder",
+      "expected": "safe",
+      "got": "safe",
+      "vishing_probability": 0.114,
+      "pass": true
+    },
+    {
+      "case": "otp threat",
+      "expected": "vishing",
+      "got": "vishing",
+      "vishing_probability": 0.9629,
+      "pass": true
+    },
+    {
+      "case": "legal transfer",
+      "expected": "vishing",
+      "got": "vishing",
+      "vishing_probability": 0.9444,
+      "pass": true
+    },
+    {
+      "case": "remote access",
+      "expected": "vishing",
+      "got": "vishing",
+      "vishing_probability": 0.9187,
+      "pass": true
+    }
+  ]
+}

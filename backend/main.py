@@ -41,7 +41,7 @@ if os.path.isdir(_ffmpeg_bin) and _ffmpeg_bin not in os.environ.get("PATH", ""):
 # ── Local imports ────────────────────────────────
 from models_loader import load_all_models, load_whisper
 from inference import (
-    run_inference, get_explanation, detect_suspicious_phrases,
+    run_inference, run_inference_detailed, get_explanation, detect_suspicious_phrases,
     build_highlighted_transcript, insufficient_evidence,
     SAMPLE_VISHING, SAMPLE_SAFE,
 )
@@ -158,11 +158,15 @@ class RegisterRequest(BaseModel):
     password: str
 
 class AnalyzeRequest(BaseModel):
+    transcript: str
+    model_choice: str = "SVM"
+    input_mode: str = "text"
+    username: str = ""
 
 # ═══════════════════════════════════════════════
 # HEALTH CHECK (public — no auth required)
 # ═══════════════════════════════════════════════
-@app.get("/api/health")
+@app.get("/api/health_detailed")
 async def health_check(request: Request):
     """Returns real-time status of all AI components."""
     state = request.app.state
@@ -186,12 +190,6 @@ async def health_check(request: Request):
         "model_count": len(ml_models) if ml_ok else 0,
         "version": "3.1",
     }
-
-
-    transcript: str
-    model_choice: str = "SVM"
-    input_mode: str = "text"
-    username: str = ""
 
 
 # ═══════════════════════════════════════════════
@@ -272,100 +270,135 @@ async def me(user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════
 # ANALYSIS ENDPOINT
 # ═══════════════════════════════════════════════
+# Per-user lock: prevents multiple concurrent analyses from the same user.
+# If the user clicks "Analyze" while one is already running, the second
+# request is rejected immediately instead of queueing up Ollama calls.
+import asyncio
+_analysis_locks: dict[str, asyncio.Lock] = {}
+
 @app.post("/api/analyze")
 async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(get_current_user)):
     username = user["sub"]
 
-    # Rate limit
-    allowed, used = check_rate_limit(username)
-    if not allowed:
-        raise HTTPException(status_code=429, detail=f"Rate limit exceeded ({MAX_ANALYSES_PER_HOUR}/hour)")
+    # ── Per-user concurrency guard ──
+    if username not in _analysis_locks:
+        _analysis_locks[username] = asyncio.Lock()
+    lock = _analysis_locks[username]
+    if lock.locked():
+        raise HTTPException(status_code=429, detail="Analysis already in progress. Please wait.")
 
-    # Sanitize
-    transcript = sanitize_input(req.transcript)
-    model_choice = req.model_choice
-    if model_choice not in ["SVM", "Logistic Regression", "Random Forest", "Neural Network"]:
-        model_choice = "SVM"
+    async with lock:
+        # Rate limit
+        allowed, used = check_rate_limit(username)
+        if not allowed:
+            raise HTTPException(status_code=429, detail=f"Rate limit exceeded ({MAX_ANALYSES_PER_HOUR}/hour)")
 
-    # Get models from app state
-    models   = request.app.state.models
-    nn_model = request.app.state.nn_model
+        # Sanitize
+        transcript = sanitize_input(req.transcript)
+        model_choice = req.model_choice
+        if model_choice not in ["SVM", "Logistic Regression", "Random Forest", "Neural Network"]:
+            model_choice = "SVM"
 
-    # ── STEP 1: ML Inference ──
-    ml_label, ml_score = run_inference(transcript, model_choice, models, nn_model)
+        # Get models from app state
+        models   = request.app.state.models
+        nn_model = request.app.state.nn_model
 
-    # ── Evidence check ──
-    insuf, insuf_reason = insufficient_evidence(transcript, ml_score)
+        # ── STEP 1: ML Inference ──
+        ml_detail = run_inference_detailed(transcript, model_choice, models, nn_model)
+        ml_label = ml_detail["label"]
+        ml_score = ml_detail["confidence"]
+        vishing_probability = ml_detail["vishing_probability"]
 
-    # ── Suspicious phrases ──
-    phrases = detect_suspicious_phrases(transcript)
-    highlighted = build_highlighted_transcript(transcript, phrases)
-
-    # ── XAI ──
-    top_keywords = get_explanation(model_choice, transcript, models)
-
-    # ── Build ML-only result ──
-    result = {
-        "verdict": ml_label if not insuf else "INCONCLUSIVE",
-        "confidence": round(ml_score, 4),
-        "source": "ml_only",
-        "ml_label": ml_label,
-        "ml_model": model_choice,
-        "insufficient_evidence": insuf,
-        "insufficient_reason": insuf_reason if insuf else None,
-        "suspicious_phrases": phrases,
-        "highlighted_transcript": highlighted,
-        "top_keywords": [[k, round(w, 4)] for k, w in top_keywords],
-        "explanation": None,
-        "scam_type": None,
-        "tactics": [],
-        "similar_cases": [],
-        "action_steps": [],
-        "divergence_flag": False,
-    }
-
-    # ── STEP 2: Hybrid Analysis (if ML score >= threshold) ──
-    if not insuf:
-        try:
-            hybrid = run_hybrid_analysis(
-                transcript=transcript,
-                model_choice=model_choice,
-                ml_label=ml_label,
-                ml_score=ml_score,
-                top_keywords=top_keywords,
-                suspicious_phrases=phrases,
-            )
-            if hybrid.get("source") == "hybrid":
-                result["verdict"]        = hybrid.get("verdict", ml_label)
-                result["source"]         = "hybrid"
-                result["explanation"]    = hybrid.get("explanation")
-                result["scam_type"]      = hybrid.get("scam_type")
-                result["tactics"]        = hybrid.get("tactic", [])
-                result["similar_cases"]  = hybrid.get("similar_cases", [])
-                result["action_steps"]   = hybrid.get("action_steps", [])
-                result["divergence_flag"] = hybrid.get("divergence_flag", False)
-
-                if result["divergence_flag"]:
-                    result["verdict"] = "SUSPICIOUS — UNCONFIRMED"
-        except Exception as e:
-            print(f"[Analyze] Hybrid analysis error: {e}")
-            # Fall back to ML-only — result already populated
-
-    # ── Log to Supabase ──
-    try:
-        record_rate_event(username)
-        log_analysis(
-            username=username,
-            input_length=len(transcript),
-            input_mode=req.input_mode,
-            model_used=model_choice,
-            verdict=result["verdict"],
-            confidence=result["confidence"],
+        # ── Evidence check ──
+        too_short = len(transcript.strip().split()) < 5
+        insuf = too_short
+        insuf_reason = (
+            "Transcript too short - provide more context for reliable analysis"
+            if too_short else ""
         )
-    except Exception as e:
-        print(f"[Analyze] Audit log error: {e}")
 
-    return result
+        # ── Suspicious phrases ──
+        phrases = detect_suspicious_phrases(transcript)
+        highlighted = build_highlighted_transcript(transcript, phrases)
+
+        # ── XAI ──
+        top_keywords = get_explanation(model_choice, transcript, models)
+
+        # ── Build ML-only result ──
+        result = {
+            "verdict": ml_label if not insuf else "INCONCLUSIVE",
+            "confidence": round(ml_score, 4),
+            "vishing_probability": round(vishing_probability, 4),
+            "safe_probability": round(ml_detail["safe_probability"], 4),
+            "ml_risk_band": ml_detail["risk_band"],
+            "source": "ml_only",
+            "ml_label": ml_label,
+            "ml_model": model_choice,
+            "ml_confidence": round(ml_score, 4),
+            "insufficient_evidence": insuf,
+            "insufficient_reason": insuf_reason if insuf else None,
+            "suspicious_phrases": phrases,
+            "highlighted_transcript": highlighted,
+            "top_keywords": [[k, round(w, 4)] for k, w in top_keywords],
+            "explanation": None,
+            "scam_type": None,
+            "tactics": [],
+            "similar_cases": [],
+            "action_steps": [],
+            "divergence_flag": False,
+            "ai_status": "not_run",
+            "ai_verdict": None,
+            "ai_risk_level": None,
+            "ai_alignment": None,
+        }
+
+        # ── STEP 2: Hybrid Analysis (if ML score >= threshold) ──
+        if not insuf:
+            try:
+                hybrid = await run_hybrid_analysis(
+                    transcript=transcript,
+                    model_choice=model_choice,
+                    ml_label=ml_label,
+                    ml_score=ml_score,
+                    top_keywords=top_keywords,
+                    suspicious_phrases=phrases,
+                    vishing_probability=vishing_probability,
+                )
+                if hybrid.get("source") == "hybrid":
+                    result["verdict"]        = hybrid.get("verdict", ml_label)
+                    result["source"]         = "hybrid"
+                    result["ai_status"]      = hybrid.get("ai_status")
+                    result["ai_verdict"]     = hybrid.get("ai_verdict")
+                    result["ai_risk_level"]  = hybrid.get("ai_risk_level")
+                    result["ai_alignment"]   = hybrid.get("ai_alignment")
+                    result["explanation"]    = hybrid.get("explanation")
+                    result["scam_type"]      = hybrid.get("scam_type")
+                    result["tactics"]        = hybrid.get("tactic", [])
+                    result["similar_cases"]  = hybrid.get("similar_cases", [])
+                    result["action_steps"]   = hybrid.get("action_steps", [])
+                    result["divergence_flag"] = hybrid.get("divergence_flag", False)
+
+                    if result["divergence_flag"]:
+                        result["verdict"] = "SUSPICIOUS — UNCONFIRMED"
+            except Exception as e:
+                print(f"[Analyze] Hybrid analysis error: {e}")
+                # Fall back to ML-only — result already populated
+
+        # ── Log to Supabase ──
+        try:
+            record_rate_event(username)
+            log_analysis(
+                username=username,
+                input_length=len(transcript),
+                input_mode=req.input_mode,
+                model_used=model_choice,
+                verdict=result["verdict"],
+                confidence=result["confidence"],
+            )
+        except Exception as e:
+            print(f"[Analyze] Audit log error: {e}")
+
+        return result
 
 
 # ═══════════════════════════════════════════════
@@ -436,6 +469,98 @@ async def health(request: Request):
         "ollama": ollama_ok,
         "chromadb": getattr(request.app.state, "chroma_count", 0),
         "supabase": supabase_ok,
+    }
+
+
+# ═══════════════════════════════════════════════
+# BENCHMARK ENDPOINT
+# ═══════════════════════════════════════════════
+_BENCHMARK_CASES = [
+    ("vishing", "vishing",
+     "This is the bank security department. Your account has been suspended due to suspicious "
+     "unauthorized activity. You must verify your details and OTP immediately or legal action "
+     "will be taken. Do not tell anyone about this call. Press 1 now."),
+    ("vishing", "vishing",
+     "Hello, I am calling from LHDN Inland Revenue. There is a warrant for your arrest due to "
+     "unpaid taxes. You must settle fine immediately via Bitcoin transfer to avoid detention. "
+     "Do not hang up or inform family members."),
+    ("vishing", "vishing",
+     "Your Microsoft Windows computer has been infected with a dangerous virus. Please install "
+     "AnyDesk immediately so our certified technical support team can remotely remove the threat. "
+     "Your banking credentials are at risk."),
+    ("vishing", "vishing",
+     "Congratulations! You have been selected as our lucky prize winner. To claim your reward, "
+     "please confirm your credit card number and NRIC immediately. Offer expires within 24 hours."),
+    ("vishing", "vishing",
+     "This is Interpol. We have detected suspicious activity linked to your account involving "
+     "money laundering. To avoid arrest, transfer funds of RM 5000 to our secure account now. "
+     "Do not discuss this matter with anyone."),
+    ("safe", "safe",
+     "Hello, this is a courtesy call from the pharmacy. Your prescription is ready for pickup. "
+     "Please bring your MyKad when you collect it. Our opening hours are 9am to 6pm. Have a great day."),
+    ("safe", "safe",
+     "Hi, I am calling from the school administration to remind you that the parent-teacher "
+     "meeting is scheduled for next Friday at 3pm. No action is required from your side."),
+    ("safe", "safe",
+     "This is your dentist clinic calling to confirm your appointment tomorrow at 10am. "
+     "If you need to reschedule, please call us back at our official number. See you soon."),
+    ("safe", "safe",
+     "Good afternoon, I am calling from the delivery department. Your parcel has arrived at the "
+     "hub and will be delivered tomorrow between 9am and 12pm. You do not need to do anything."),
+    ("safe", "safe",
+     "Hello, this is customer service following up on your recent feedback. We have resolved the "
+     "issue you raised last week. Is there anything else we can help you with today?"),
+]
+
+
+@app.get("/api/benchmark")
+async def benchmark(request: Request, user: dict = Depends(get_current_user)):
+    """
+    Run a live ML speed and accuracy benchmark using the loaded models.
+    Returns per-sample results plus aggregate accuracy and latency metrics.
+    """
+    import time as _time
+    models   = request.app.state.models
+    nn_model = request.app.state.nn_model
+
+    cases, latencies, correct = [], [], 0
+    for true_label, expected, transcript in _BENCHMARK_CASES:
+        t0 = _time.perf_counter()
+        ml_label, ml_score = run_inference(transcript, "SVM", models, nn_model)
+        insuf, _ = insufficient_evidence(transcript, ml_score, label=ml_label)
+        latency_ms = (_time.perf_counter() - t0) * 1000
+
+        final_verdict = "inconclusive" if insuf else ml_label
+        passed = (final_verdict == expected) or (expected == "vishing" and insuf)
+        correct += int(passed)
+        latencies.append(latency_ms)
+
+        cases.append({
+            "index":          len(cases) + 1,
+            "true_label":     true_label,
+            "expected":       expected,
+            "got":            final_verdict,
+            "confidence":     round(ml_score, 4),
+            "latency_ms":     round(latency_ms, 2),
+            "pass":           passed,
+            "transcript_preview": transcript[:80] + "...",
+        })
+
+    accuracy   = round(correct / len(_BENCHMARK_CASES) * 100, 1)
+    avg_lat    = round(sum(latencies) / len(latencies), 2)
+    max_lat    = round(max(latencies), 2)
+    ready      = accuracy >= 80 and avg_lat < 200
+
+    return {
+        "accuracy":        accuracy,
+        "correct":         correct,
+        "total":           len(_BENCHMARK_CASES),
+        "avg_latency_ms":  avg_lat,
+        "max_latency_ms":  max_lat,
+        "ready":           ready,
+        "vishing_threshold": 0.80,
+        "reject_threshold":  0.80,
+        "cases":           cases,
     }
 
 
