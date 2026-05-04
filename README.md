@@ -26,18 +26,18 @@ npm run dev
 |-------|-----------|---------| 
 | ML Classifier | TF-IDF (FeatureUnion: char+word) + calibrated SVM v3 | Fast ML-first classification (98.88% clean-test accuracy) |
 | RAG Search | ChromaDB + MiniLM-L6-v2 | Historical scam pattern matching |
-| AI Reviewer | Direct Ollama (Llama 3.2 3B) + structured prompts | Explanation and ML disagreement review without overriding strong ML evidence |
+| AI Reviewer | Groq API (Llama 3.3 70B) + structured prompts | Explanation and ML disagreement review without overriding strong ML evidence |
 
 ## Features
 
 - **Advanced Machine Learning Engine**: Evaluates linguistic patterns, emotional tone, and urgency indicators to detect scams.
-- **RAG + LLM Context Search**: Cross-references local vector databases of known scam scripts (ChromaDB) and generates natural language explanations via Ollama.
+- **RAG + LLM Context Search**: Cross-references local vector databases of known scam scripts (ChromaDB) and generates natural language explanations via Groq API (Llama 3.3 70B).
 - **Deep Neural Network Validation**: Second-stage verification routing high-risk transcripts through an optimized multi-layer perceptron.
 - **Real-Time System Health**: Live health monitoring (`/api/health`) tracks connectivity and loaded ML models via a reactive polling hook.
 - **V2 "Dark Tech Startup" UI**: Completely overhauled dark-mode interface (`#09090b` base) built with custom Shadcn-compatible components.
 - **WebGL Interactive Elements**: Features high-performance WebGL shaders including an ethereal fluid background on the authentication page and interactive `LiquidMetalButton` components.
 - **Professional Input Components**: Includes floating-label transcript inputs, drag-and-drop audio zones, and a scroll-gated Terms & Conditions dialog.
-- **Local-First Audio Processing**: Client-side transcription using local instances of OpenAI's Whisper model via FastAPI.
+- **Local-First Audio Processing**: Audio transcription powered by OpenAI’s Whisper Large v3 Turbo model via the Groq API for ultra-fast, high-accuracy speech-to-text.
 
 ## How It Works (System Flow)
 
@@ -45,17 +45,17 @@ The system uses an ML-first hybrid cascade. The machine learning model owns the 
 
 1. **Layer 1 (ML Classification):** The input transcript is first processed by a calibrated SVM using TF-IDF FeatureUnion features. It returns `P(vishing)`, `P(safe)`, an ML label, and TF-IDF feature signals.
 2. **Layer 2 (RAG Search):** The transcript is embedded and searched against a ChromaDB vector database of past vishing calls. The top similar cases are retrieved as context.
-3. **Layer 3 (AI Review):** Direct Ollama prompts produce structured advisory fields: scam type, tactics, plain-language explanation, action steps, and whether the AI supports or questions the ML result.
+3. **Layer 3 (AI Review):** Groq API (Llama 3.3 70B) prompts produce structured advisory fields: scam type, tactics, plain-language explanation, action steps, and whether the AI supports or questions the ML result.
 4. **ML-first cross-check:** Strong ML results are preserved. If AI/rules disagree with ML, the system flags the case as `SUSPICIOUS - UNCONFIRMED` instead of letting the LLM silently overwrite the model.
 
 ## Codebase Guide (Where to Look)
 
 To understand how the hybrid AI architecture is implemented, check out these core files in the `backend/` folder:
 
-- `backend/hybrid_engine.py`: The heart of the system. This file keeps ML as the primary decision layer, runs RAG retrieval, invokes the direct Ollama reviewer, and performs the final cross-check logic.
+- `backend/hybrid_engine.py`: The heart of the system. This file keeps ML as the primary decision layer, runs RAG retrieval, invokes the Groq API reviewer, and performs the final cross-check logic.
 - `backend/inference.py`: Shows how the classical ML model is invoked. Also contains `get_explanation` which extracts the top TF-IDF keywords from the FeatureUnion pipeline.
 - `backend/rag_module.py`: Handles ChromaDB vector storage and similarity search.
-- `backend/agents/crew.py`: Contains the direct Ollama prompt workflow that produces structured advisory JSON without overriding strong ML evidence.
+- `backend/agents/crew.py`: Contains the Groq API prompt workflow that produces structured advisory JSON without overriding strong ML evidence.
 - `frontend/src/components/results/`: Look here for the React components that visualize the analysis, specifically how the hybrid cascade outputs are parsed into the UI.
 - `notebooks/03_limited_dataset_svm_training.py`: The v3 limited-dataset training pipeline with `CELL 1`, `CELL 2`, etc. comments for easy Jupyter copy/paste.
 
@@ -74,7 +74,7 @@ ml_result = run_inference_detailed(transcript, "SVM", models, nn_model)
 # 2. RAG retrieval adds past-case context for explanation.
 similar_cases = query_similar_scams(transcript, n_results=2)
 
-# 3. Direct Ollama review returns advisory JSON only.
+# 3. Groq API review returns advisory JSON only.
 ai_review = await run_crew({
     "transcript": transcript,
     "ml_score": ml_result["confidence"],

@@ -27,8 +27,8 @@ import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 
 const STATS = [
-  { val: '99.4%', label: 'ML Accuracy' },
-  { val: 'SVM v2', label: 'Classifier' },
+  { val: '98.9%', label: 'ML Accuracy' },
+  { val: 'SVM v3', label: 'Classifier' },
   { val: 'RAG',   label: 'Pattern DB' },
   { val: '2',     label: 'AI Agents' },
   { val: 'XAI',   label: 'Explainable' },
@@ -129,7 +129,7 @@ export default function MainDashboard() {
                 <div style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#5A6475',
                 }}>
-                  Hybrid analysis may take 30–90 seconds
+                  Hybrid analysis typically completes in 2–5 seconds
                 </div>
               </div>
             )}
@@ -168,7 +168,7 @@ export default function MainDashboard() {
                 )}
 
                 {result.source === 'ml_only' && !result.insufficient_evidence && (
-                  <InfoBox>AI explanation unavailable — showing ML analysis only. Start Ollama for full hybrid analysis.</InfoBox>
+                  <InfoBox>AI explanation unavailable — showing ML analysis only. Check Groq API connection for full hybrid analysis.</InfoBox>
                 )}
 
                 <HighlightedTranscript html={result.highlighted_transcript} />

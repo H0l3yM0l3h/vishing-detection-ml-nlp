@@ -3,6 +3,8 @@ main.py — FastAPI backend for ShieldGuard
 ==========================================
 Exposes all ShieldGuard intelligence via REST endpoints.
 Core logic is imported unchanged from the copied modules.
+
+[v3.4 — 2026-05-05] LLM: Ollama → Groq API, Whisper: local → Groq API
 """
 
 import os
@@ -39,7 +41,7 @@ if os.path.isdir(_ffmpeg_bin) and _ffmpeg_bin not in os.environ.get("PATH", ""):
         pass
 
 # ── Local imports ────────────────────────────────
-from models_loader import load_all_models, load_whisper
+from models_loader import load_all_models
 from inference import (
     run_inference, run_inference_detailed, get_explanation, detect_suspicious_phrases,
     build_highlighted_transcript, insufficient_evidence,
@@ -47,7 +49,7 @@ from inference import (
 )
 from hybrid_engine import run_hybrid_analysis
 from rag_module import ensure_scam_library
-from llm_config import check_ollama_available
+from llm_config import check_groq_available, check_ollama_available, _get_groq_client
 from auth import (
     validate_password, validate_username, sanitize_input,
     hash_password, verify_password,
@@ -90,11 +92,9 @@ async def lifespan(app: FastAPI):
     app.state.chroma_count = count
     print(f"[ShieldGuard] ChromaDB: {count} entries indexed")
 
-    ollama_ok = check_ollama_available()
-    app.state.ollama_available = ollama_ok
-    print(f"[ShieldGuard] Ollama: {'Available' if ollama_ok else 'Not reachable'}")
-
-    app.state.whisper_model = None  # lazy-loaded on first transcription
+    groq_ok = check_groq_available()
+    app.state.groq_available = groq_ok
+    print(f"[ShieldGuard] Groq API: {'Available' if groq_ok else 'Not reachable — check GROQ_API_KEY'}")
 
     print("[ShieldGuard] Backend ready!")
     yield
@@ -173,8 +173,7 @@ async def health_check(request: Request):
     ml_models   = getattr(state, "models",    None)
     nn_model    = getattr(state, "nn_model",  None)
     chroma      = getattr(state, "chroma_count", 0)
-    ollama_ok   = getattr(state, "ollama_available", False)
-    whisper_ok  = getattr(state, "whisper_model", None) is not None
+    groq_ok     = getattr(state, "groq_available", False)
 
     ml_ok = bool(ml_models and len(ml_models) > 0)
 
@@ -184,11 +183,11 @@ async def health_check(request: Request):
             "ml_classifier":  {"ok": ml_ok,    "detail": f"{len(ml_models)} models" if ml_ok else "not loaded"},
             "neural_network": {"ok": bool(nn_model), "detail": "loaded" if nn_model else "not loaded"},
             "rag_chromadb":   {"ok": chroma > 0, "detail": f"{chroma} entries"},
-            "llm_ollama":     {"ok": ollama_ok,  "detail": "reachable" if ollama_ok else "not reachable"},
-            "whisper_stt":    {"ok": whisper_ok, "detail": "loaded" if whisper_ok else "lazy (loads on first use)"},
+            "llm_groq":       {"ok": groq_ok,   "detail": "reachable" if groq_ok else "not reachable"},
+            "whisper_stt":    {"ok": groq_ok,    "detail": "Groq whisper-large-v3-turbo" if groq_ok else "requires Groq API"},
         },
         "model_count": len(ml_models) if ml_ok else 0,
-        "version": "3.1",
+        "version": "3.4",
     }
 
 
@@ -417,21 +416,31 @@ async def transcribe(file: UploadFile = File(...), user: dict = Depends(get_curr
     if len(content) > 25 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large (max 25MB)")
 
-    # Load whisper lazily
-    if app.state.whisper_model is None:
-        try:
-            app.state.whisper_model = load_whisper()
-        except Exception:
-            raise HTTPException(status_code=500, detail="Whisper not installed")
-
-    # Transcribe — exact same logic as streamlit_app.py
+    # Transcribe via Groq Whisper API (whisper-large-v3-turbo)
     tmp = None
     try:
+        client = _get_groq_client()
+        if client is None:
+            raise HTTPException(status_code=500, detail="Groq API key not configured")
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
             f.write(content)
             tmp = f.name
-        result = app.state.whisper_model.transcribe(tmp, fp16=False)
-        return {"transcript": result["text"].strip()}
+
+        import asyncio
+        def _sync_transcribe():
+            with open(tmp, "rb") as audio_file:
+                transcription = client.audio.transcriptions.create(
+                    file=(file.filename or f"audio{suffix}", audio_file.read()),
+                    model="whisper-large-v3-turbo",
+                    language="en",
+                )
+            return transcription.text.strip()
+
+        transcript_text = await asyncio.to_thread(_sync_transcribe)
+        return {"transcript": transcript_text}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)[:200]}")
     finally:
@@ -454,8 +463,8 @@ async def history(limit: int = 10, user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════
 @app.get("/api/health")
 async def health(request: Request):
-    ollama_ok = check_ollama_available()
-    request.app.state.ollama_available = ollama_ok
+    groq_ok = check_groq_available()
+    request.app.state.groq_available = groq_ok
 
     supabase_ok = True
     try:
@@ -466,7 +475,8 @@ async def health(request: Request):
 
     return {
         "ml_models": hasattr(request.app.state, "models") and bool(request.app.state.models),
-        "ollama": ollama_ok,
+        "groq": groq_ok,
+        "ollama": groq_ok,  # legacy compat: frontend may still check this key
         "chromadb": getattr(request.app.state, "chroma_count", 0),
         "supabase": supabase_ok,
     }

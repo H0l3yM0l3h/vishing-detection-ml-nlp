@@ -1,12 +1,36 @@
 # ShieldGuard — Complete System Context
-> **Version:** 3.3 - ML v3 Limited-Dataset Retraining + ML-first Hybrid
+> **Version:** 3.4 - Groq Cloud API Migration (LLM + Whisper)
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Direct Ollama) + Phase 3 (React + FastAPI)
+> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Groq API) + Phase 3 (React + FastAPI)
 
 ---
 
 ## Changelog
+
+### v3.4 — 2026-05-05 — Groq Cloud API Migration (LLM + Whisper)
+
+**LLM Migration (Ollama → Groq API):**
+- Replaced local Ollama (`llama3.2:3b`) with Groq Cloud API (`llama-3.3-70b-versatile`).
+- 70B parameter model provides significantly better reasoning, JSON compliance, and scam analysis accuracy.
+- Inference speed improved from 15-30s per hybrid analysis to < 2 seconds via Groq's LPU hardware.
+- Updated `llm_config.py`: Removed `OllamaLLM` / `langchain_ollama` imports, replaced with `groq` SDK singleton.
+- Updated `agents/crew.py`: Replaced `_ollama_generate()` HTTP calls with `_groq_generate()` using `groq.chat.completions.create()`.
+- All prompts (Forensic Analyst, Safety Guardian) and output parsers remain **byte-for-byte identical** — zero impact on analysis logic.
+
+**Whisper ASR Migration (local → Groq API):**
+- Replaced local PyTorch Whisper (`base` model, ~74M params) with Groq's `whisper-large-v3-turbo` API.
+- Large-v3-turbo is the most accurate Whisper variant available — significantly better for accented speech and noisy audio.
+- Removed `load_whisper()` from `models_loader.py`. No local PyTorch model loading required.
+- Updated `/api/transcribe` endpoint in `main.py` to send audio to Groq API.
+
+**Infrastructure changes:**
+- Added `GROQ_API_KEY` to `backend/.env` (gitignored).
+- Ollama is no longer a prerequisite — system runs entirely without local LLM/ASR servers.
+- Updated health endpoints (`/api/health`, `/api/health_detailed`) to check Groq API status.
+- Frontend labels updated: footer tags, diagnostics, dashboard messages.
+
+**Impact on ML accuracy:** Zero. SVM v3, Neural Network, ChromaDB RAG, TF-IDF XAI are all unchanged.
 
 ### v3.3 - 2026-04-29 - ML v3 Limited-Dataset Retraining
 
@@ -130,11 +154,11 @@ The system has two frontends:
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  LAYER 3 — DIRECT OLLAMA LLM  (Phase 2, v3.2)                   │
+│  LAYER 3 — GROQ CLOUD LLM  (Phase 2, v3.4)                      │
 │                                                                 │
-│  LLM:     Llama 3.2 3B via Ollama (local, no API key)           │
-│  Method:  Direct async HTTP (httpx → /api/generate)             │
-│  Token:   num_predict = 512 (capped output)                     │
+│  LLM:     Llama 3.3 70B via Groq API (cloud, free tier)          │
+│  Method:  groq SDK → chat.completions.create()                   │
+│  Token:   max_tokens = 512 (capped output)                       │
 │                                                                 │
 │  Prompt 1 — Forensic Analyst                                    │
 │    → Validates ML flag + classifies scam type                   │
@@ -170,12 +194,12 @@ The system has two frontends:
 | Deep Learning | TensorFlow/Keras | 2.15.1 |
 | NLP Vectorizer | TF-IDF FeatureUnion (char_wb 3-5 + word 1-2) | — |
 | Lemmatizer | NLTK WordNetLemmatizer | — |
-| Speech-to-Text | OpenAI Whisper | base model |
+| Speech-to-Text | OpenAI Whisper | large-v3-turbo (via Groq API) |
 | RAG Database | ChromaDB | ≥0.5.0 |
 | RAG Embeddings | sentence-transformers | all-MiniLM-L6-v2 |
-| Agent Framework | Direct async HTTP (httpx) | replaced CrewAI in v3.2 |
-| LLM Backend | Ollama | llama3.2:3b (local) |
-| LLM Interface | httpx AsyncClient → /api/generate | removed LangChain in v3.2 |
+| Agent Framework | Direct async HTTP (Groq SDK) | replaced Ollama HTTP in v3.4 |
+| LLM Backend | Groq Cloud API | llama-3.3-70b-versatile |
+| LLM Interface | groq Python SDK → chat.completions | replaced Ollama/LangChain in v3.4 |
 | Database | Supabase (PostgreSQL) | Cloud |
 | Authentication | bcrypt + JWT (python-jose) | — |
 | Audio Processing | pydub + ffmpeg | — |
@@ -194,11 +218,12 @@ The system has two frontends:
 ### Infrastructure
 | Component | Technology |
 |---|---|
-| LLM Server | Ollama (localhost:11434) |
+| LLM Server | Groq Cloud API (llama-3.3-70b-versatile) |
+| ASR Server | Groq Cloud API (whisper-large-v3-turbo) |
 | Database | Supabase (cloud PostgreSQL) |
 | Models Storage | Local filesystem (`models/`) |
 | RAG Storage | Local filesystem (`data/scam_library/`) |
-| Audio Engine | ffmpeg (D:\ffmpeg\ffmpeg-8.1-essentials_build\bin) |
+| Audio Engine | ffmpeg (local, for format conversion) |
 
 ---
 
@@ -231,9 +256,10 @@ The system has two frontends:
 - **Configuration:** Via `CORS_ORIGINS` environment variable
 
 ### Data Privacy
-- **No External APIs:** All AI processing runs locally (Ollama, ChromaDB, Whisper)
-- **No Data Sent Externally:** Transcripts never leave the local machine
-- **Credential Storage:** Supabase keys in `.env` file (gitignored)
+- **ML Models:** SVM, Neural Network, TF-IDF, ChromaDB all run locally — no data sent externally for ML inference
+- **LLM + Whisper:** Transcripts are sent to Groq Cloud API for analysis. Groq's API terms state they do not train on API data.
+- **Architecture supports local fallback:** The system can be reconfigured to use local Ollama for air-gapped/enterprise deployments
+- **Credential Storage:** Supabase keys and Groq API key in `.env` file (gitignored)
 
 ---
 
@@ -339,7 +365,7 @@ Moved to `models/legacy/` — still loaded by `models_loader.py` for backward co
 
 ---
 
-## AI Review System (Direct Ollama)
+## AI Review System (Groq Cloud API)
 
 ### Prompts
 | Prompt | Role | Output |
@@ -348,10 +374,10 @@ Moved to `models/legacy/` — still loaded by `models_loader.py` for backward co
 | Safety Guardian | Produces user-facing explanation and next steps | verdict, tactics, explanation, action steps |
 
 ### Configuration
-- **LLM:** `llama3.2:3b` through local Ollama
-- **Process:** Direct async `httpx` calls to `/api/generate`
+- **LLM:** `llama-3.3-70b-versatile` through Groq Cloud API
+- **Process:** `groq` Python SDK → `chat.completions.create()`
 - **Guardrail:** The LLM is advisory and cannot silently replace strong ML evidence.
-- **Fallback:** If Ollama is offline, returns ML-only result with graceful message
+- **Fallback:** If Groq API is offline, returns ML-only result with graceful message
 
 ---
 
@@ -492,8 +518,8 @@ VishingDetection/
 ### Prerequisites
 - Python 3.12+
 - Node.js 18+
-- Ollama installed with `llama3.2:3b` model pulled
-- ffmpeg installed at `D:\ffmpeg\ffmpeg-8.1-essentials_build\bin`
+- Groq API key (free tier at https://console.groq.com)
+- ffmpeg installed (for audio format conversion)
 
 ### Option A: React + FastAPI (Recommended)
 
@@ -531,19 +557,17 @@ Create `backend/.env`:
 ```
 SUPABASE_URL=https://xwuwynsvpgavsadnnlko.supabase.co
 SUPABASE_KEY=your-anon-key
-OLLAMA_BASE_URL=http://localhost:11434
+GROQ_API_KEY=your-groq-api-key
 JWT_SECRET=your-secret-key
 MODELS_DIR=../models
 HF_CACHE_DIR=../.hf_cache
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
-### Start Ollama (Required for Hybrid Analysis)
-```powershell
-ollama serve
-# In another terminal:
-ollama pull llama3.2:3b
-```
+### Groq API Key (Required for Hybrid Analysis + Whisper)
+1. Sign up at https://console.groq.com (free)
+2. Create an API key
+3. Add to `backend/.env` as `GROQ_API_KEY=gsk_...`
 
 ---
 

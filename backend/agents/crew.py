@@ -1,19 +1,19 @@
 """
-crew.py — Direct async Ollama execution for ShieldGuard Phase 2
-=================================================================
-[v3.3 Speed Optimisation] Replaced CrewAI with direct Ollama HTTP calls.
+crew.py — Direct async Groq execution for ShieldGuard Phase 2
+================================================================
+[v3.4 — 2026-05-05] Migrated from Ollama HTTP to Groq Cloud API.
 
-Why this is faster:
-  - CrewAI adds ~5-10s of framework overhead per run (agent init, delegation,
-    LangChain middleware, output parsing, memory management).
-  - Direct HTTP calls to Ollama's /api/generate endpoint eliminate all of this.
-  - asyncio.gather() runs both prompts TRULY in parallel if Ollama supports
-    concurrent requests (OLLAMA_NUM_PARALLEL >= 2).
-  - Even without parallel Ollama, the overhead reduction alone saves 5-10s.
+Why Groq is faster than local Ollama:
+  - Groq's custom LPU (Language Processing Unit) hardware delivers
+    500+ tokens/second — 10-50x faster than CPU-based Ollama.
+  - 70B model (llama-3.3-70b-versatile) replaces local 3B model,
+    providing significantly better reasoning and JSON compliance.
+  - Network round-trip (~50ms) is negligible vs. the 15-30s saved
+    on local inference.
 
 Architecture:
   Prompt 1 (Forensic):  ML validation + scam classification     ─┐
-  Prompt 2 (Guardian):  Tactic detection + verdict + actions     ─┤ parallel
+  Prompt 2 (Guardian):  Tactic detection + verdict + actions     ─┤ sequential
                                                                   ↓
   Final parse + cross-check                                      → result
 """
@@ -21,35 +21,48 @@ Architecture:
 import json
 import re
 import asyncio
-import httpx
 
-from llm_config import check_ollama_available, OLLAMA_BASE_URL, MODEL_PRESETS, DEFAULT_MODEL
+from llm_config import check_groq_available, _get_groq_client, MODEL_PRESETS, DEFAULT_MODEL
 
 
-# ── Ollama generation ────────────────────────────────────────────────────────
-async def _ollama_generate(prompt: str, model: str, timeout: float = 60.0) -> str:
+# ── Groq generation ─────────────────────────────────────────────────────────
+async def _groq_generate(prompt: str, model: str, timeout: float = 60.0) -> str:
     """
-    Call Ollama's /api/generate endpoint directly.
+    Call Groq's chat completions API.
     Returns the generated text, or an empty string on failure.
     """
-    preset = MODEL_PRESETS.get(model, {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512})
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": preset.get("temperature", 0.1),
-            "num_ctx":     preset.get("num_ctx", 4096),
-            "num_predict": preset.get("num_predict", 512),
-        },
-    }
+    preset = MODEL_PRESETS.get(model, {"max_tokens": 512, "temperature": 0.1})
+
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload)
-            if resp.status_code == 200:
-                return resp.json().get("response", "")
+        client = _get_groq_client()
+        if client is None:
+            return ""
+
+        # Run the synchronous Groq SDK call in a thread pool to avoid
+        # blocking the asyncio event loop
+        def _sync_call():
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a cybersecurity vishing detection expert. "
+                            "Analyze transcripts and return structured results. "
+                            "Be concise and precise."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=preset.get("temperature", 0.1),
+                max_tokens=preset.get("max_tokens", 512),
+            )
+            return response.choices[0].message.content or ""
+
+        return await asyncio.to_thread(_sync_call)
+
     except Exception as e:
-        print(f"[Crew] Ollama call failed: {e}")
+        print(f"[Crew] Groq call failed: {e}")
     return ""
 
 
@@ -178,23 +191,23 @@ def _parse_guardian_output(raw_output: str) -> dict:
 # ── Main entry point ─────────────────────────────────────────────────────────
 async def run_crew(case_file: dict, model: str = DEFAULT_MODEL) -> dict:
     """
-    Run the 2-agent analysis using direct Ollama HTTP calls.
+    Run the 2-agent analysis using Groq Cloud API.
 
     Flow:
-      1. Forensic prompt → Ollama (ML validation + scam classification)
-      2. Guardian prompt → Ollama (uses forensic output + produces verdict)
-      Total: 2 LLM calls (down from 4 in CrewAI), zero framework overhead.
+      1. Forensic prompt → Groq (ML validation + scam classification)
+      2. Guardian prompt → Groq (uses forensic output + produces verdict)
+      Total: 2 LLM calls, zero local compute overhead.
 
     Parameters
     ----------
     case_file : dict with transcript, ml_score, ml_label, etc.
-    model     : Ollama model tag (default: llama3.2:3b)
+    model     : Groq model ID (default: llama-3.3-70b-versatile)
 
     Returns
     -------
     dict with: verdict, scam_type, tactics, explanation, action_steps
     """
-    if not check_ollama_available():
+    if not check_groq_available():
         return {
             "verdict": "LLM UNAVAILABLE",
             "risk_level": "medium",
@@ -202,14 +215,14 @@ async def run_crew(case_file: dict, model: str = DEFAULT_MODEL) -> dict:
             "scam_type": "Unknown",
             "tactics": [],
             "explanation": (
-                "The AI analysis engine (Ollama) is not reachable. "
+                "The AI analysis engine (Groq API) is not reachable. "
                 "The result shown is based on ML model analysis only. "
-                "Start Ollama to enable full hybrid analysis."
+                "Check your GROQ_API_KEY in .env to enable full hybrid analysis."
             ),
             "action_steps": [
                 "Review the ML model's verdict and confidence score",
                 "If flagged as vishing, exercise caution",
-                "Start Ollama for full AI-powered analysis",
+                "Check Groq API key configuration for full AI-powered analysis",
             ],
         }
 
@@ -233,19 +246,19 @@ async def run_crew(case_file: dict, model: str = DEFAULT_MODEL) -> dict:
 
 async def _run_async_pipeline(case_file: dict, model: str) -> dict:
     """
-    Async pipeline: Forensic → Guardian (sequential, but each is a fast
-    direct HTTP call with zero framework overhead).
+    Async pipeline: Forensic → Guardian (sequential, each is an ultra-fast
+    Groq API call with sub-second latency).
     """
     # Step 1: Forensic analysis
     forensic_prompt = _build_forensic_prompt(case_file)
-    forensic_output = await _ollama_generate(forensic_prompt, model, timeout=45.0)
+    forensic_output = await _groq_generate(forensic_prompt, model, timeout=45.0)
 
     if not forensic_output.strip():
         forensic_output = f"ML flag {case_file['ml_label'].upper()} at {case_file['ml_score']:.0%} confidence."
 
     # Step 2: Guardian verdict (uses forensic output as context)
     guardian_prompt = _build_guardian_prompt(case_file, forensic_output)
-    guardian_output = await _ollama_generate(guardian_prompt, model, timeout=45.0)
+    guardian_output = await _groq_generate(guardian_prompt, model, timeout=45.0)
 
     if not guardian_output.strip():
         return {

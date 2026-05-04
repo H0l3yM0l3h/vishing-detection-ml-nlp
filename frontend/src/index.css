@@ -101,6 +101,9 @@ body {
   border-radius:   14px;
   padding:         24px;
   box-shadow:      0 4px 24px rgba(0,0,0,.4);
+  overflow-wrap:   break-word;
+  word-break:      break-word;
+  overflow:        hidden;
 }
 .sg-card-glow {
   animation: bdr 5s ease-in-out infinite;

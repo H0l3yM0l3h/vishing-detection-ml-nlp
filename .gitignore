@@ -45,5 +45,10 @@ frontend/node_modules/
 frontend/dist/
 frontend/package-lock.json
 
+# Reports (never push unless explicitly asked)
+Report/
+explanation.md
+reportstructure.md
+
 # Legacy
 app/supabase_schema.sql

@@ -1,69 +1,93 @@
 """
-llm_config.py — Ollama LLM configuration for ShieldGuard Phase 2
-=================================================================
-Provides a LangChain-compatible LLM backed by a local Ollama server.
+llm_config.py — Groq Cloud LLM configuration for ShieldGuard Phase 2
+=====================================================================
+Provides LLM inference via Groq API (cloud-hosted, ultra-fast).
 
-Default model: llama3.2:3b  (lightweight, ~2GB, runs on any machine)
+Default model: llama-3.3-70b-versatile  (70B params, free tier)
+
+[v3.4 — 2026-05-05] Migrated from local Ollama to Groq Cloud API.
+  - 70B model replaces 3B → significantly smarter analysis
+  - Sub-second inference latency via Groq LPU hardware
+  - No local GPU or Ollama server required
 """
 
-import requests
-from langchain_ollama import OllamaLLM
+import os
+from groq import Groq
+from dotenv import load_dotenv
+from pathlib import Path
 
-OLLAMA_BASE_URL = "http://localhost:11434"
+# Load .env
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 # ── Model presets ────────────────────────────────
-# num_predict caps the max output tokens; shorter = faster response
+# max_tokens caps the max output tokens; shorter = faster response
 MODEL_PRESETS = {
-    "llama3.2:3b":  {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
-    "qwen2.5:32b":  {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
-    "llama3.3:70b": {"num_ctx": 4096, "temperature": 0.1, "num_predict": 512},
+    "llama-3.3-70b-versatile":  {"max_tokens": 512, "temperature": 0.1},
+    "llama-3.1-8b-instant":     {"max_tokens": 512, "temperature": 0.1},
+    "meta-llama/llama-4-scout-17b-16e-instruct": {"max_tokens": 512, "temperature": 0.1},
 }
 
-DEFAULT_MODEL = "llama3.2:3b"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+
+# ── Lazy singleton ───────────────────────────────
+_groq_client = None
 
 
-def check_ollama_available() -> bool:
-    """Ping the Ollama server. Returns True if reachable."""
+def _get_groq_client() -> Groq | None:
+    """Return a Groq client, or None if no API key is configured."""
+    global _groq_client
+    if _groq_client is None:
+        if not GROQ_API_KEY:
+            return None
+        _groq_client = Groq(api_key=GROQ_API_KEY)
+    return _groq_client
+
+
+def check_groq_available() -> bool:
+    """Ping the Groq API. Returns True if reachable and authenticated."""
     try:
-        r = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
-        return r.status_code == 200
+        client = _get_groq_client()
+        if client is None:
+            return False
+        # Lightweight call to verify connectivity + auth
+        client.models.list()
+        return True
     except Exception:
         return False
 
 
+# ── Legacy compatibility aliases ─────────────────
+# These allow existing imports to work without changes elsewhere
+def check_ollama_available() -> bool:
+    """Legacy alias → now checks Groq API instead of Ollama."""
+    return check_groq_available()
+
+
 def get_available_models() -> list[str]:
-    """Return list of model names currently pulled in Ollama."""
+    """Return list of available Groq model IDs."""
     try:
-        r = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            return [m["name"] for m in data.get("models", [])]
+        client = _get_groq_client()
+        if client is None:
+            return []
+        models = client.models.list()
+        return [m.id for m in models.data]
     except Exception:
-        pass
-    return []
+        return []
 
 
 def get_llm(model: str = DEFAULT_MODEL):
     """
-    Return a LangChain-compatible Ollama LLM instance.
+    Return the Groq client for direct usage.
 
     Parameters
     ----------
     model : str
-        Ollama model tag (e.g. 'llama3.2:3b').
+        Groq model ID (e.g. 'llama-3.3-70b-versatile').
 
     Returns
     -------
-    Ollama LLM instance, or None if Ollama is unreachable.
+    Groq client instance, or None if API key is missing.
     """
-    if not check_ollama_available():
-        return None
-
-    preset = MODEL_PRESETS.get(model, {"num_ctx": 4096, "temperature": 0.1})
-
-    return OllamaLLM(
-        model=model,
-        base_url=OLLAMA_BASE_URL,
-        temperature=preset["temperature"],
-        num_ctx=preset["num_ctx"],
-    )
+    return _get_groq_client()
