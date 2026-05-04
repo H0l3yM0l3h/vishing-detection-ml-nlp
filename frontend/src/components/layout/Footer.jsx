@@ -1,5 +1,5 @@
 export default function Footer() {
-  const tags = ['TF-IDF', 'SVM v2', 'Neural Net', 'Whisper', 'ChromaDB', 'CrewAI', 'Ollama', 'RAG']
+  const tags = ['TF-IDF', 'SVM v3', 'Neural Net', 'Whisper', 'ChromaDB', 'Llama 3.3 70B', 'Groq', 'RAG']
   return (
     <footer style={{
       borderTop: '1px solid rgba(255,255,255,.06)',

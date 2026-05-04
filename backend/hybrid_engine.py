@@ -19,7 +19,7 @@ from agents.crew import run_crew
 AI_REVIEW_MIN_PROB = 0.20
 STRONG_SAFE_PROB = 0.20
 STRONG_VISHING_PROB = 0.85
-DEFAULT_LLM_MODEL = "llama3.2:3b"
+DEFAULT_LLM_MODEL = "llama-3.3-70b-versatile"  # Groq model ID (v3.4)
 
 
 async def run_hybrid_analysis(

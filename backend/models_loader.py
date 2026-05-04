@@ -96,7 +96,6 @@ def load_all_models(models_dir: str | Path) -> tuple:
     return vectorizer, ml_models, nn_model
 
 
-def load_whisper():
-    """Load Whisper base model for audio transcription."""
-    import whisper
-    return whisper.load_model("base")
+# NOTE: load_whisper() was removed in v3.4 (2026-05-05).
+# Whisper transcription is now handled by Groq API (whisper-large-v3-turbo).
+# No local PyTorch model loading is required.

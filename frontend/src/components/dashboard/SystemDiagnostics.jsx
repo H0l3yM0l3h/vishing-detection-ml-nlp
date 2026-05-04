@@ -155,7 +155,7 @@ export default function SystemDiagnostics() {
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '9px', color: '#5A6475',
             }}>
-              10 labelled samples · SVM v2 · No Ollama required
+              10 labelled samples · SVM v3 · ML-only (no Groq required)
             </span>
           </div>
 
@@ -292,7 +292,7 @@ export default function SystemDiagnostics() {
               }}>
                 {data.ready
                   ? '✓ System is performing within expected parameters — ready for user testing.'
-                  : '! Some cases were inconclusive. Ensure Ollama is running for full hybrid analysis.'}
+                  : '! Some cases were inconclusive. Check Groq API connection for full hybrid analysis.'}
               </div>
             </>
           )}
