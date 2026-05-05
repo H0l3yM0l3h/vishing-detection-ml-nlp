@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import MainDashboard from './pages/MainDashboard'
+import AdminDashboard from './pages/AdminDashboard'
 
 function ProtectedRoute({ children }) {
   const token = useAuthStore((s) => s.token)
@@ -22,8 +23,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )
 }
+

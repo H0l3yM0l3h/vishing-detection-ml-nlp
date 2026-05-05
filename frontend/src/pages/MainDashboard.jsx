@@ -30,7 +30,7 @@ const STATS = [
   { val: '98.9%', label: 'ML Accuracy' },
   { val: 'SVM v3', label: 'Classifier' },
   { val: 'RAG',   label: 'Pattern DB' },
-  { val: '2',     label: 'AI Agents' },
+  { val: '2',     label: 'AI Reviewers' },
   { val: 'XAI',   label: 'Explainable' },
 ]
 
@@ -154,7 +154,7 @@ export default function MainDashboard() {
                   />
                 </div>
 
-                <ConfidenceBar    confidence={result.confidence} />
+                <ConfidenceBar    confidence={result.confidence} verdict={result.verdict} />
                 <PhraseChips      phrases={result.suspicious_phrases} />
                 <XAIPanel         keywords={result.top_keywords} />
 

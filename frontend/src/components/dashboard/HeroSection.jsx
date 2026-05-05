@@ -5,7 +5,7 @@ const PHRASES = [
   'Hybrid Intelligence Engine',
   '99.4% SVM Classifier Accuracy',
   'Fully Explainable AI Verdicts',
-  '4 Specialised Reasoning Agents',
+  '2 AI Reviewers (Groq 70B)',
 ]
 
 export default function HeroSection() {

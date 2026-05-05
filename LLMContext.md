@@ -1,12 +1,36 @@
 # ShieldGuard — Complete System Context
-> **Version:** 3.4 - Groq Cloud API Migration (LLM + Whisper)
+> **Version:** 3.5 - Admin Analytics Dashboard
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Groq API) + Phase 3 (React + FastAPI)
+> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Groq API) + Phase 3 (React + FastAPI) + Phase 4 (Admin Analytics)
 
 ---
 
 ## Changelog
+
+### v3.5 — 2026-05-06 — Admin Analytics Dashboard
+
+**New Feature: Analytics Dashboard (`/admin`):**
+- Added `AdminDashboard.jsx` — a dedicated analytics page accessible from the header navigation.
+- Displays four KPI cards: Total Analyses, Registered Users, Vishing Rate, Average Confidence.
+- Verdict Breakdown — donut chart (Vishing / Safe / Inconclusive) powered by Recharts.
+- Detection Trend — 7-day stacked area chart showing daily vishing vs safe vs total.
+- Confidence Distribution — histogram bar chart color-coded by risk level.
+- Top Users — ranked progress-bar leaderboard of most active users.
+- System Status bar — live component status (ML Engine, RAG, Groq LLM, Supabase).
+- Data sourced from existing Supabase `audit_log` table via new `GET /api/analytics` endpoint.
+- Styled to match existing dark glassmorphism theme — no emojis, clean tech-startup aesthetic.
+
+**Bug Fix: CSS Text Overflow:**
+- Added `overflow-wrap: break-word`, `word-break: break-word`, and `overflow: hidden` to `.sg-card` in `index.css`.
+- Prevents long unbroken strings from overflowing card boundaries across all UI components.
+
+**Frontend Navigation:**
+- Added "Analytics" button to the header navbar linking to `/admin`.
+- Updated `App.jsx` router with protected `/admin` route.
+- Updated header system status sub-text from `SVM v2` to `SVM v3 · Groq · RAG`.
+
+**Impact on ML accuracy:** Zero. Read-only analytics feature.
 
 ### v3.4 — 2026-05-05 — Groq Cloud API Migration (LLM + Whisper)
 
@@ -277,9 +301,11 @@ The system has two frontends:
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/analyze` | Full ML + hybrid cascade analysis |
-| POST | `/api/transcribe` | Upload audio → Whisper transcription |
+| POST | `/api/transcribe` | Upload audio → Groq Whisper transcription |
 | GET | `/api/history` | Get last N scan results from Supabase |
-| GET | `/api/health` | System health check (models, Ollama, ChromaDB, Supabase) |
+| GET | `/api/analytics` | Aggregated dashboard stats (verdict distribution, trend, confidence, top users) |
+| GET | `/api/health` | System health check (models, Groq, ChromaDB, Supabase) |
+| GET | `/api/health_detailed` | Detailed component-by-component health with version info |
 | GET | `/api/samples` | Get sample vishing/safe transcripts |
 
 ### Analysis Response Schema
@@ -416,15 +442,15 @@ VishingDetection/
 │   ├── main.py                   ← FastAPI app: lifespan, endpoints, JWT auth
 │   ├── models_loader.py          ← ML model loading (joblib, keras)
 │   ├── inference.py              ← run_inference, get_explanation, detect_suspicious_phrases
-│   ├── hybrid_engine.py          ← ML→RAG→direct Ollama cascade orchestrator
+│   ├── hybrid_engine.py          ← ML→RAG→Groq cascade orchestrator
 │   ├── rag_module.py             ← ChromaDB scam library + similarity search
-│   ├── llm_config.py             ← Ollama LLM configuration
+│   ├── llm_config.py             ← Groq API configuration (SDK singleton)
 │   ├── database.py               ← Supabase client + all DB functions
 │   ├── auth.py                   ← Password hashing, validation, sanitization
 │   ├── agents/
 │   │   ├── __init__.py
 │   │   ├── agent_definitions.py  ← legacy agent definitions kept for reference
-│   │   └── crew.py               ← direct Ollama prompts and output parsing
+│   │   └── crew.py               ← Groq API prompts and output parsing
 │   ├── requirements.txt
 │   └── .env                      ← Environment variables (gitignored)
 │
@@ -433,7 +459,7 @@ VishingDetection/
 │   ├── vite.config.js            ← Vite + Tailwind + API proxy to :8000
 │   ├── package.json
 │   └── src/
-│       ├── App.jsx               ← Router: /login, /app (protected)
+│       ├── App.jsx               ← Router: /login, /app, /admin (protected)
 │       ├── main.jsx              ← React DOM mount
 │       ├── index.css             ← Tailwind + design system (CSS variables, keyframes)
 │       ├── api/client.js         ← Axios with JWT interceptor
@@ -443,9 +469,10 @@ VishingDetection/
 │       │   └── useTranscribe.js  ← Zustand: audio transcription
 │       ├── pages/
 │       │   ├── LoginPage.jsx     ← Login/Register with lockout display
-│       │   └── MainDashboard.jsx ← Full analysis dashboard
+│       │   ├── MainDashboard.jsx ← Full analysis dashboard
+│       │   └── AdminDashboard.jsx ← Analytics dashboard (charts, KPIs, user leaderboard)
 │       └── components/
-│           ├── layout/           ← Header (logo, online badge), Footer
+│           ├── layout/           ← Header (logo, online badge, analytics nav), Footer
 │           ├── auth/             ← LoginForm, RegisterForm
 │           ├── input/            ← InputTabs, AudioRecorder, AudioUploader, TranscriptInput
 │           ├── results/          ← VerdictCard, RiskGauge, ConfidenceBar, PhraseChips,
@@ -502,7 +529,8 @@ VishingDetection/
 │
 ├── tests/                        ← Test files
 │   ├── test_auth.py
-│   └── test_rag.py
+│   ├── test_rag.py
+│   └── test_groq.py              ← Groq API integration test (vishing + safe)
 │
 ├── .streamlit/secrets.toml       ← Supabase credentials (legacy, gitignored)
 ├── .gitignore
