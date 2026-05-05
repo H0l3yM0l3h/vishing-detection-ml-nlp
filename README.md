@@ -39,6 +39,8 @@ npm run dev
 - **Professional Input Components**: Includes floating-label transcript inputs, drag-and-drop audio zones, and a scroll-gated Terms & Conditions dialog.
 - **Local-First Audio Processing**: Audio transcription powered by OpenAI’s Whisper Large v3 Turbo model via the Groq API for ultra-fast, high-accuracy speech-to-text.
 
+- **Admin Analytics Dashboard**: Dedicated `/admin` page with KPI cards, verdict donut chart, 7-day detection trend, confidence histogram, and top-user leaderboard — powered by Recharts and Supabase audit logs.
+
 ## How It Works (System Flow)
 
 The system uses an ML-first hybrid cascade. The machine learning model owns the numeric risk score and primary verdict; the LLM layer reviews and explains the result without silently replacing strong ML evidence.
@@ -57,6 +59,7 @@ To understand how the hybrid AI architecture is implemented, check out these cor
 - `backend/rag_module.py`: Handles ChromaDB vector storage and similarity search.
 - `backend/agents/crew.py`: Contains the Groq API prompt workflow that produces structured advisory JSON without overriding strong ML evidence.
 - `frontend/src/components/results/`: Look here for the React components that visualize the analysis, specifically how the hybrid cascade outputs are parsed into the UI.
+- `frontend/src/pages/AdminDashboard.jsx`: The admin analytics dashboard with Recharts charts and Supabase-backed aggregate statistics.
 - `notebooks/03_limited_dataset_svm_training.py`: The v3 limited-dataset training pipeline with `CELL 1`, `CELL 2`, etc. comments for easy Jupyter copy/paste.
 
 ### Example: How the Models and Agents are Called

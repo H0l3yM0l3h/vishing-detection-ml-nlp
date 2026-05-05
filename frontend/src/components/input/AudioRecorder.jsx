@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { useTranscribeStore } from '../../hooks/useTranscribe'
+import { LiquidMetalButton } from '../ui/liquid-metal-button'
 
 export default function AudioRecorder({ onTranscriptReady }) {
   const [recording, setRecording] = useState(false)
@@ -88,20 +89,16 @@ export default function AudioRecorder({ onTranscriptReady }) {
       {audioUrl && (
         <div className="space-y-3">
           <audio src={audioUrl} controls className="w-full h-10" style={{ filter: 'invert(1) hue-rotate(180deg)' }} />
-          <button
+          <LiquidMetalButton
+            label={loading ? 'Transcribing...' : 'Transcribe Audio'}
             onClick={handleTranscribe}
-            disabled={loading}
-            className="w-full font-display text-[10px] font-bold tracking-[3px] uppercase text-white
-              py-3 rounded-lg cursor-pointer border-none disabled:opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, #0066bb, #004488)',
-              boxShadow: '0 4px 16px rgba(0,170,255,.2)',
-            }}
-          >
-            {loading ? 'TRANSCRIBING...' : 'TRANSCRIBE AUDIO'}
-          </button>
+            disabled={!audioBlob || loading}
+            loading={loading}
+            fullWidth
+          />
         </div>
       )}
     </div>
   )
 }
+

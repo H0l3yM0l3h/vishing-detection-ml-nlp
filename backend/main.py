@@ -29,16 +29,19 @@ from dotenv import load_dotenv
 # ── Load .env before anything else ───────────────
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-# ── Ensure ffmpeg is on PATH ─────────────────────
-_ffmpeg_bin = r"D:\ffmpeg\ffmpeg-8.1-essentials_build\bin"
-if os.path.isdir(_ffmpeg_bin) and _ffmpeg_bin not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = _ffmpeg_bin + os.pathsep + os.environ.get("PATH", "")
-    try:
-        from pydub import AudioSegment
-        AudioSegment.converter = os.path.join(_ffmpeg_bin, "ffmpeg.exe")
-        AudioSegment.ffprobe   = os.path.join(_ffmpeg_bin, "ffprobe.exe")
-    except ImportError:
-        pass
+# ── Ensure ffmpeg is available ─────────────────────
+# On Windows (local dev), check specific path. On Linux (Docker), it's in system PATH.
+_windows_ffmpeg = r"D:\ffmpeg\ffmpeg-8.1-essentials_build\bin"
+if os.name == 'nt' and os.path.isdir(_windows_ffmpeg) and _windows_ffmpeg not in os.environ.get("PATH", ""):
+    os.environ["PATH"] = _windows_ffmpeg + os.pathsep + os.environ.get("PATH", "")
+
+try:
+    from pydub import AudioSegment
+    if os.name == 'nt' and os.path.isdir(_windows_ffmpeg):
+        AudioSegment.converter = os.path.join(_windows_ffmpeg, "ffmpeg.exe")
+        AudioSegment.ffprobe   = os.path.join(_windows_ffmpeg, "ffprobe.exe")
+except ImportError:
+    pass
 
 # ── Local imports ────────────────────────────────
 from models_loader import load_all_models
@@ -480,6 +483,105 @@ async def health(request: Request):
         "chromadb": getattr(request.app.state, "chroma_count", 0),
         "supabase": supabase_ok,
     }
+
+
+# ═══════════════════════════════════════════════
+# ANALYTICS ENDPOINT (Admin Dashboard)
+# ═══════════════════════════════════════════════
+@app.get("/api/analytics")
+async def analytics(user: dict = Depends(get_current_user)):
+    """Aggregate stats from audit_log for the admin analytics dashboard."""
+    try:
+        from database import get_supabase
+        from collections import Counter, defaultdict
+
+        sb = get_supabase()
+        resp = (
+            sb.table("audit_log")
+              .select("verdict, confidence, model_used, input_mode, analyzed_at, username")
+              .order("analyzed_at", desc=True)
+              .limit(500)
+              .execute()
+        )
+        rows = resp.data or []
+
+        if not rows:
+            return {
+                "total_scans": 0, "total_users": 0, "avg_confidence": 0, "vishing_rate": 0,
+                "verdict_distribution": [], "daily_trend": [], "confidence_distribution": [], "top_users": [],
+            }
+
+        # Verdict distribution
+        verdict_counts = Counter()
+        for r in rows:
+            v = (r.get("verdict") or "").lower()
+            if "vishing" in v or "hang up" in v:
+                verdict_counts["Vishing"] += 1
+            elif "safe" in v or "legitimate" in v:
+                verdict_counts["Safe"] += 1
+            else:
+                verdict_counts["Inconclusive"] += 1
+        verdict_distribution = [{"name": k, "value": v} for k, v in verdict_counts.items()]
+
+        # Daily trend (last 7 days)
+        from datetime import datetime, timezone, timedelta
+        today = datetime.now(timezone.utc).date()
+        daily = defaultdict(lambda: {"total": 0, "vishing": 0, "safe": 0})
+        for r in rows:
+            try:
+                ts = datetime.fromisoformat((r.get("analyzed_at") or "").replace("Z", "+00:00"))
+                day = ts.date()
+                if (today - day).days <= 6:
+                    label = day.strftime("%d %b")
+                    daily[label]["total"] += 1
+                    v = (r.get("verdict") or "").lower()
+                    if "vishing" in v or "hang up" in v:
+                        daily[label]["vishing"] += 1
+                    elif "safe" in v or "legitimate" in v:
+                        daily[label]["safe"] += 1
+            except Exception:
+                pass
+        daily_trend = []
+        for i in range(6, -1, -1):
+            day = today - timedelta(days=i)
+            label = day.strftime("%d %b")
+            entry = daily.get(label, {"total": 0, "vishing": 0, "safe": 0})
+            daily_trend.append({"date": label, **entry})
+
+        # Confidence distribution
+        buckets = defaultdict(int)
+        for r in rows:
+            conf = float(r.get("confidence") or 0)
+            bucket = min(int(conf * 10), 9)
+            label = f"{bucket * 10}-{bucket * 10 + 10}%"
+            buckets[label] += 1
+        confidence_distribution = [
+            {"range": f"{i*10}-{i*10+10}%", "count": buckets.get(f"{i*10}-{i*10+10}%", 0)}
+            for i in range(10)
+        ]
+
+        # Top users
+        user_counts = Counter(r.get("username", "unknown") for r in rows)
+        top_users = [{"username": u, "scans": c} for u, c in user_counts.most_common(5)]
+
+        # Averages
+        confs = [float(r.get("confidence") or 0) for r in rows]
+        avg_confidence = round(sum(confs) / len(confs) * 100, 1) if confs else 0
+        vishing_rate = round(verdict_counts.get("Vishing", 0) / len(rows) * 100, 1) if rows else 0
+
+        users_resp = sb.table("users").select("username", count="exact").execute()
+        total_users = users_resp.count or len(set(r.get("username") for r in rows))
+
+        return {
+            "total_scans": len(rows), "total_users": total_users,
+            "avg_confidence": avg_confidence, "vishing_rate": vishing_rate,
+            "verdict_distribution": verdict_distribution, "daily_trend": daily_trend,
+            "confidence_distribution": confidence_distribution, "top_users": top_users,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics error: {str(e)[:200]}")
+
+
 
 
 # ═══════════════════════════════════════════════

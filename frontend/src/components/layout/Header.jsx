@@ -2,11 +2,13 @@ import { useAuthStore } from '../../hooks/useAuth'
 import { useSystemStatus } from '../../hooks/useSystemStatus'
 import { FeaturedIcon } from '../ui/featured-icons'
 import { Wifi, WifiOff, Loader } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function Header() {
-  const user   = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
-  const sys    = useSystemStatus()
+  const user    = useAuthStore((s) => s.user)
+  const logout   = useAuthStore((s) => s.logout)
+  const sys      = useSystemStatus()
+  const navigate = useNavigate()
 
   // Derive display from live status
   const isChecking = sys.checking && sys.connected === null
@@ -18,7 +20,7 @@ export default function Header() {
   const StatusIcon  = isChecking ? Loader  : isOnline || isDegraded ? Wifi : WifiOff
   const statusLabel = isChecking ? 'CHECKING...' : isOnline ? 'SYSTEM ONLINE' : isDegraded ? 'DEGRADED' : 'OFFLINE'
   const statusSub   = isOnline
-    ? 'SVM v2 · RAG · LLM'
+    ? 'SVM v3 · Groq · RAG'
     : isDegraded
     ? 'Some components unavailable'
     : isOffline
@@ -94,6 +96,30 @@ export default function Header() {
 
           {/* Divider */}
           <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,.08)' }} />
+
+          {/* Analytics link */}
+          <button
+            id="nav-analytics-btn"
+            onClick={() => navigate('/admin')}
+            style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: '9px',
+              letterSpacing: '1.5px', textTransform: 'uppercase',
+              color: '#6366F1', background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.2)',
+              borderRadius: '7px', padding: '5px 11px',
+              cursor: 'pointer', transition: 'all .2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(99,102,241,0.18)'
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.45)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(99,102,241,0.08)'
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)'
+            }}
+          >
+            Analytics
+          </button>
 
           {/* User avatar chip */}
           {user && (

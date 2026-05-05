@@ -1,6 +1,6 @@
 const STEPS = [
   { num: '01', title: 'Capture',  desc: 'Record live audio, upload a file, or paste a transcript directly' },
-  { num: '02', title: 'Analyse',  desc: 'ML classifier and 4 AI agents reason through the content in cascade' },
+  { num: '02', title: 'Analyse',  desc: 'ML classifier, RAG context search, and 2 AI reviewers reason through the content in cascade' },
   { num: '03', title: 'Assess',   desc: 'Receive an explainable verdict with evidence, tactics, and next steps' },
 ]
 
