@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-
+import api from '../api/client'
 const POLL_MS = 30_000   // check every 30 seconds
 const TIMEOUT_MS = 5_000 // consider offline if no response in 5s
 
@@ -27,11 +27,10 @@ export function useSystemStatus() {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-      const res = await fetch('/api/health_detailed', { signal: controller.signal })
+      const res = await api.get('/health_detailed', { signal: controller.signal })
       clearTimeout(timer)
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const data = res.data
 
       setState({
         connected:   true,
