@@ -123,7 +123,7 @@ export default function LoginPage() {
           style={{ width: '100%', maxWidth: '400px', border: '1px solid #27272a', background: 'rgba(18,18,20,0.82)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
         >
           {/* Header */}
-          <CardHeader style={{ paddingBottom: '4px' }}>
+          <CardHeader style={{ padding: '24px 24px 4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div style={{ width: '30px', height: '30px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                 <img src="/logo.png" alt="ShieldGuard logo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -137,7 +137,7 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent style={{ paddingTop: '4px' }}>
+          <CardContent style={{ padding: '4px 24px 24px' }}>
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: '4px', background: '#09090b', border: '1px solid #27272a', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               <button className={`tab-btn ${tab === 'login' ? 'active' : 'inactive'}`} onClick={() => setTab('login')}>
@@ -252,7 +252,7 @@ export default function LoginPage() {
             )}
           </CardContent>
 
-          <CardFooter style={{ justifyContent: 'center', paddingTop: 0 }}>
+          <CardFooter style={{ padding: '0 24px 24px', justifyContent: 'center' }}>
             <span style={{ fontSize: '11px', color: '#3f3f46', fontFamily: "'JetBrains Mono', monospace" }}>
               ShieldGuard v3.1 — Hybrid Intelligence System
             </span>
