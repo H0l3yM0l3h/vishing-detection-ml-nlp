@@ -24,8 +24,7 @@ function PwField({ id, label, value, onChange, placeholder = '••••••
           onChange={onChange}
           autoComplete={autoComplete}
           required
-          className="sg-input bg-zinc-950 border-zinc-800 text-zinc-50 placeholder:text-zinc-600"
-          style={{ paddingRight: '40px' }}
+          className="sg-input sg-pw-input bg-zinc-950 border-zinc-800 text-zinc-50 placeholder:text-zinc-600"
         />
         <button
           type="button"
@@ -105,7 +104,8 @@ export default function LoginPage() {
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,9,11,0.55)' }} />
 
       <style>{`
-        .sg-input{height:40px!important;background:#09090b!important;border-color:#27272a!important;color:#fafafa!important}
+        .sg-input{height:40px!important;padding:0 16px!important;background:#09090b!important;border-color:#27272a!important;color:#fafafa!important}
+        .sg-pw-input{padding-right:40px!important}
         .sg-input::placeholder{color:#52525b!important}
         .sg-input:focus-visible{border-color:#3f3f46!important;box-shadow:0 0 0 3px rgba(99,102,241,.12)!important;outline:none!important}
         .card-animate{opacity:0;transform:translateY(16px);animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) .2s forwards}
