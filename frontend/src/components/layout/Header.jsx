@@ -3,6 +3,7 @@ import { useSystemStatus } from '../../hooks/useSystemStatus'
 import { FeaturedIcon } from '../ui/featured-icons'
 import { Wifi, WifiOff, Loader } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { ThemeSwitch } from '../ui/theme-switch-button'
 
 export default function Header() {
   const user    = useAuthStore((s) => s.user)
@@ -96,6 +97,8 @@ export default function Header() {
 
           {/* Divider */}
           <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,.08)' }} />
+
+          <ThemeSwitch />
 
           {/* Analytics link */}
           <button
