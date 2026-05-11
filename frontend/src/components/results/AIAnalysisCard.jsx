@@ -12,7 +12,7 @@ export default function AIAnalysisCard({ explanation, scamType }) {
             {scamType}
           </div>
         )}
-        <p className="text-sm text-[var(--text)] leading-7">{explanation}</p>
+        <p className="text-[15px] text-[var(--text)] leading-7">{explanation}</p>
       </div>
     </div>
   )

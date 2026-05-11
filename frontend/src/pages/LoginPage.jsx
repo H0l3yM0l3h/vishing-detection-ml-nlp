@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../hooks/useAuth'
+import api from '../api/client'
 import { Eye, EyeOff } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -9,7 +10,7 @@ import { Button } from '../components/ui/button'
 import { EtheralShadow } from '../components/ui/etheral-shadow'
 import TocDialog from '../components/ui/toc-dialog'
 
-/* ─── Password show/hide field ─── */
+/* Password show/hide field */
 function PwField({ id, label, value, onChange, placeholder = '••••••••', autoComplete }) {
   const [show, setShow] = useState(false)
   return (
@@ -53,7 +54,14 @@ export default function LoginPage() {
   const token    = useAuthStore((s) => s.token)
   useEffect(() => { if (token) navigate('/app', { replace: true }) }, [token, navigate])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    api.get('/health', { signal: controller.signal }).catch(() => {})
+    return () => controller.abort()
+  }, [])
+
   const [tab, setTab] = useState('login')
+  const [showWakeupText, setShowWakeupText] = useState(false)
 
   // Login
   const [loginUser, setLoginUser] = useState('')
@@ -69,10 +77,19 @@ export default function LoginPage() {
 
   const { login, register, loading, error } = useAuthStore()
 
+  useEffect(() => {
+    if (!loading || tab !== 'login') return
+
+    const timer = setTimeout(() => setShowWakeupText(true), 3000)
+    return () => clearTimeout(timer)
+  }, [loading, tab])
+
   const handleLogin = async (e) => {
     e.preventDefault()
+    setShowWakeupText(false)
     setLockInfo(null); setRemaining(null)
     const res = await login(loginUser.trim(), loginPass)
+    setShowWakeupText(false)
     if (!res?.success) {
       if (res?.locked)                            setLockInfo({ minutes: res.minutes_remaining })
       if (res?.remaining_attempts !== undefined)  setRemaining(res.remaining_attempts)
@@ -88,7 +105,7 @@ export default function LoginPage() {
   const pwsMatch = regPass && regConfirm && regPass === regConfirm
 
   return (
-    <section style={{ position: 'fixed', inset: 0, background: '#09090b', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <section className="sg-login-page" style={{ position: 'fixed', inset: 0, background: 'var(--login-bg)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
 
       {/* Etheral Shadow full-viewport background */}
       <div style={{ position: 'absolute', inset: 0 }}>
@@ -101,26 +118,31 @@ export default function LoginPage() {
       </div>
 
       {/* Dark overlay to keep card legible */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,9,11,0.55)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--login-overlay)' }} />
 
       <style>{`
-        .sg-input{height:40px!important;padding:0 16px!important;background:#09090b!important;border-color:#27272a!important;color:#fafafa!important}
+        .sg-login-page{--login-bg:#09090b;--login-overlay:rgba(9,9,11,0.55);--login-card:rgba(18,18,20,0.82);--login-border:#27272a;--login-input:#09090b;--login-tab:#09090b;--login-tab-active:#27272a;--login-text:#fafafa;--login-muted:#71717a;--login-muted-soft:#3f3f46;--login-rule:rgba(255,255,255,.03)}
+        html[data-theme="light"] .sg-login-page{--login-bg:#F6F8FC;--login-overlay:rgba(246,248,252,0.42);--login-card:rgba(255,255,255,0.84);--login-border:rgba(15,23,42,.14);--login-input:rgba(255,255,255,.86);--login-tab:rgba(248,250,252,.78);--login-tab-active:#0f172a;--login-text:#0f172a;--login-muted:#64748b;--login-muted-soft:#94a3b8;--login-rule:rgba(15,23,42,.05)}
+        .sg-input{height:40px!important;padding:0 16px!important;background:var(--login-input)!important;border-color:var(--login-border)!important;color:var(--login-text)!important}
         .sg-pw-input{padding-right:40px!important}
-        .sg-input::placeholder{color:#52525b!important}
+        .sg-input::placeholder{color:var(--login-muted-soft)!important}
         .sg-input:focus-visible{border-color:#3f3f46!important;box-shadow:0 0 0 3px rgba(99,102,241,.12)!important;outline:none!important}
         .card-animate{opacity:0;transform:translateY(16px);animation:fadeUp .65s cubic-bezier(.22,.61,.36,1) .2s forwards}
         @keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
         .tab-btn{flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:500;transition:all .2s}
-        .tab-btn.active{background:#27272a;color:#fafafa;box-shadow:inset 0 0 0 1px #3f3f46}
-        .tab-btn.inactive{background:transparent;color:#71717a}
-        .tab-btn.inactive:hover{color:#a1a1aa}
+        .tab-btn.active{background:var(--login-tab-active);color:#fafafa;box-shadow:inset 0 0 0 1px rgba(99,102,241,.25)}
+        .tab-btn.inactive{background:transparent;color:var(--login-muted)}
+        .tab-btn.inactive:hover{color:var(--login-text)}
+        html[data-theme="light"] .tab-btn.active{color:#f8fafc}
+        html[data-theme="light"] .sg-login-page .text-zinc-300{color:#334155!important}
+        html[data-theme="light"] .sg-login-page .text-zinc-400{color:#64748b!important}
       `}</style>
 
       {/* Centered card */}
       <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'grid', placeItems: 'center', padding: '0 16px' }}>
         <Card
           className="card-animate"
-          style={{ width: '100%', maxWidth: '400px', border: '1px solid #27272a', background: 'rgba(18,18,20,0.82)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
+          style={{ width: '100%', maxWidth: '400px', border: '1px solid var(--login-border)', background: 'var(--login-card)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
         >
           {/* Header */}
           <CardHeader style={{ padding: '24px 24px 4px' }}>
@@ -128,18 +150,18 @@ export default function LoginPage() {
               <div style={{ width: '30px', height: '30px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                 <img src="/logo.png" alt="ShieldGuard logo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </div>
-              <CardTitle style={{ fontSize: '20px', fontWeight: 700, color: '#fafafa', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <CardTitle style={{ fontSize: '20px', fontWeight: 700, color: 'var(--login-text)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 ShieldGuard
               </CardTitle>
             </div>
-            <CardDescription style={{ color: '#71717a', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <CardDescription style={{ color: 'var(--login-muted)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               {tab === 'login' ? 'Sign in to your account' : 'Create a new account'}
             </CardDescription>
           </CardHeader>
 
           <CardContent style={{ padding: '4px 24px 24px' }}>
             {/* Tab switcher */}
-            <div style={{ display: 'flex', gap: '4px', background: '#09090b', border: '1px solid #27272a', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '4px', background: 'var(--login-tab)', border: '1px solid var(--login-border)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               <button className={`tab-btn ${tab === 'login' ? 'active' : 'inactive'}`} onClick={() => setTab('login')}>
                 Sign In
               </button>
@@ -148,7 +170,7 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* ── SIGN IN ── */}
+            {/* SIGN IN */}
             {tab === 'login' && (
               <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {lockInfo && (
@@ -175,13 +197,19 @@ export default function LoginPage() {
                   onChange={(e) => setLoginPass(e.target.value)} autoComplete="current-password" />
                 <Button type="submit" disabled={loading}
                   className="w-full h-10 rounded-lg bg-zinc-50 text-zinc-900 hover:bg-zinc-200 font-semibold"
-                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  {loading ? 'Signing in...' : 'Sign In'}
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    whiteSpace: showWakeupText ? 'normal' : undefined,
+                    lineHeight: showWakeupText ? 1.2 : undefined,
+                    fontSize: showWakeupText ? '12px' : undefined,
+                    paddingInline: showWakeupText ? '10px' : undefined,
+                  }}>
+                  {loading ? (showWakeupText ? 'Waking up cloud backend, this may take a minute...' : 'Signing in...') : 'Sign In'}
                 </Button>
               </form>
             )}
 
-            {/* ── CREATE ACCOUNT ── */}
+            {/* CREATE ACCOUNT */}
             {tab === 'signup' && (
               <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {error && (
@@ -202,7 +230,7 @@ export default function LoginPage() {
 
                 {/* PW rules compact grid */}
                 {regPass.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', padding: '10px 12px', background: 'rgba(255,255,255,.03)', border: '1px solid #27272a', borderRadius: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', padding: '10px 12px', background: 'var(--login-rule)', border: '1px solid var(--login-border)', borderRadius: '8px' }}>
                     {PW_RULES.map((r) => (
                       <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: r.test(regPass) ? '#10B981' : '#3f3f46' }}>
                         <span style={{ width: '10px' }}>{r.test(regPass) ? '+' : '-'}</span>
@@ -237,7 +265,7 @@ export default function LoginPage() {
                       </svg>
                     )}
                   </div>
-                  <span style={{ fontSize: '13px', color: '#71717a', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  <span style={{ fontSize: '13px', color: 'var(--login-muted)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                     I have read and agree to the{' '}
                     <TocDialog onAgree={() => setTocAgreed(true)} />
                   </span>
@@ -253,7 +281,7 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter style={{ padding: '0 24px 24px', justifyContent: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#3f3f46', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: '11px', color: 'var(--login-muted-soft)', fontFamily: "'JetBrains Mono', monospace" }}>
               ShieldGuard v3.1 — Hybrid Intelligence System
             </span>
           </CardFooter>

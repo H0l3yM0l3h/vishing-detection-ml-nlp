@@ -48,7 +48,7 @@ export default function RiskGauge({ confidence, verdict = '', vishingProbability
       <div style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-        color: '#5A6475', marginBottom: '10px', alignSelf: 'flex-start',
+        color: 'var(--text-3)', marginBottom: '10px', alignSelf: 'flex-start',
       }}>
         Risk Assessment
       </div>
@@ -66,7 +66,7 @@ export default function RiskGauge({ confidence, verdict = '', vishingProbability
           return <path key={i} d={`M ${x1} ${y1} A ${r} ${r} 0 ${z.e - z.s > 0.5 ? 1 : 0} 1 ${x2} ${y2}`} fill="none" stroke={z.c} strokeWidth="22" strokeLinecap="butt" />
         })}
 
-        <path d={arcPath} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="3" />
+        <path d={arcPath} fill="none" stroke="var(--border)" strokeWidth="3" />
         <path d={arcPath} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round"
           strokeDasharray={circumference} strokeDashoffset={circumference - (animatedAngle / 180) * circumference}
           style={{ filter: `drop-shadow(0 0 5px ${color}80)`, transition: 'stroke .5s ease' }} />
@@ -74,11 +74,11 @@ export default function RiskGauge({ confidence, verdict = '', vishingProbability
         <g transform={`rotate(${needleAngle}, ${cx}, ${cy})`}>
           <line x1={cx} y1={cy} x2={cx + r - 14} y2={cy} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
           <circle cx={cx} cy={cy} r="6" fill={color} />
-          <circle cx={cx} cy={cy} r="3" fill="rgba(8,10,18,.9)" />
+          <circle cx={cx} cy={cy} r="3" fill="var(--surface)" />
         </g>
 
         {/* Percent — WHITE, not purple */}
-        <text x={cx} y={cy - 14} textAnchor="middle" fill="#F8FAFC"
+        <text x={cx} y={cy - 14} textAnchor="middle" fill="var(--text)"
           fontSize="26" fontFamily="'Plus Jakarta Sans', sans-serif" fontWeight="800">
           {riskPct}%
         </text>

@@ -2,7 +2,6 @@ import { useState, useEffect, useId } from 'react'
 import api from '../../api/client'
 import { Textarea } from '../ui/textarea'
 import { LiquidMetalButton } from '../ui/liquid-metal-button'
-import { useTranscribeStore } from '../../hooks/useTranscribe'
 import { useAnalysisStore } from '../../hooks/useAnalysis'
 
 export default function TranscriptInput({ onTranscriptReady }) {
@@ -35,12 +34,12 @@ export default function TranscriptInput({ onTranscriptReady }) {
             zIndex:      10,
             display:     'block',
             padding:     '0 6px',
-            background:  'rgba(8,10,18,0.92)',
+            background:  'var(--field-label-bg)',
             fontFamily:  "'JetBrains Mono', monospace",
             fontSize:    '10px',
             letterSpacing: '1.5px',
             textTransform: 'uppercase',
-            color:       '#5A6475',
+            color:       'var(--text-3)',
             lineHeight:  1,
             whiteSpace:  'nowrap',
             pointerEvents: 'none',
@@ -57,13 +56,13 @@ export default function TranscriptInput({ onTranscriptReady }) {
           placeholder="Paste the call transcript here..."
           style={{
             width:           '100%',
-            background:      'rgba(8,10,18,0.85)',
-            border:          '1px solid rgba(255,255,255,.1)',
+            background:      'var(--field-bg)',
+            border:          '1px solid var(--border)',
             borderRadius:    '10px',
             padding:         '16px 14px',
-            color:           '#F8FAFC',
+            color:           'var(--text)',
             fontFamily:      "'Plus Jakarta Sans', sans-serif",
-            fontSize:        '14px',
+            fontSize:        '15px',
             lineHeight:      1.7,
             resize:          'vertical',
             minHeight:       '200px',
@@ -77,7 +76,7 @@ export default function TranscriptInput({ onTranscriptReady }) {
             e.target.style.boxShadow    = '0 0 0 3px rgba(99,102,241,.08)'
           }}
           onBlur={(e) => {
-            e.target.style.borderColor  = 'rgba(255,255,255,.1)'
+            e.target.style.borderColor  = 'var(--border)'
             e.target.style.boxShadow    = 'none'
           }}
         />
@@ -90,7 +89,7 @@ export default function TranscriptInput({ onTranscriptReady }) {
             right:      '12px',
             fontFamily: "'JetBrains Mono', monospace",
             fontSize:   '10px',
-            color:      '#3f3f46',
+            color:      'var(--text-3)',
             pointerEvents: 'none',
           }}>
             {text.length} chars

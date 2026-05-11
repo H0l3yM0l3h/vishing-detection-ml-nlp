@@ -7,18 +7,18 @@ const STEPS = [
 export default function StepGuide() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
-      {STEPS.map((s, i) => (
+      {STEPS.map((s) => (
         <div key={s.num}
           className="sg-card"
           style={{ position: 'relative', overflow: 'hidden', cursor: 'default', transition: 'border-color .2s, transform .2s' }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.16)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.08)'; e.currentTarget.style.transform = 'translateY(0)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-hi)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)' }}
         >
           {/* Ghost number — white/gray, NOT purple */}
           <div style={{
             position: 'absolute', top: '-10px', right: '10px',
             fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
-            fontSize: '64px', color: '#fff', opacity: 0.04, lineHeight: 1, userSelect: 'none',
+            fontSize: '64px', color: 'var(--text)', opacity: 0.05, lineHeight: 1, userSelect: 'none',
           }}>
             {s.num}
           </div>
@@ -26,13 +26,13 @@ export default function StepGuide() {
           {/* Step badge — neutral gray border */}
           <div style={{
             display: 'inline-block',
-            background: 'rgba(255,255,255,.04)',
-            border: '1px solid rgba(255,255,255,.1)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
             borderRadius: '6px', padding: '2px 9px', marginBottom: '12px',
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px', color: '#A0ADB8', letterSpacing: '1px',
+              fontSize: '10px', color: 'var(--text-2)', letterSpacing: '1px',
             }}>
               Step {s.num}
             </span>
@@ -41,7 +41,7 @@ export default function StepGuide() {
           {/* Title — white */}
           <div style={{
             fontFamily: "'Plus Jakarta Sans', sans-serif",
-            fontWeight: 700, fontSize: '15px', color: '#F8FAFC', marginBottom: '6px',
+            fontWeight: 700, fontSize: '15px', color: 'var(--text)', marginBottom: '6px',
           }}>
             {s.title}
           </div>
@@ -49,7 +49,7 @@ export default function StepGuide() {
           {/* Desc — gray */}
           <div style={{
             fontFamily: "'Plus Jakarta Sans', sans-serif",
-            fontSize: '13px', color: '#5A6475', lineHeight: 1.65,
+            fontSize: '13px', color: 'var(--text-3)', lineHeight: 1.65,
           }}>
             {s.desc}
           </div>

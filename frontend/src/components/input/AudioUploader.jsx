@@ -37,7 +37,7 @@ export default function AudioUploader({ onTranscriptReady }) {
 
       {/* Styled file input row */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <Label htmlFor={id} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: '#a1a1aa' }}>
+        <Label htmlFor={id} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: 'var(--text-2)' }}>
           Select file
         </Label>
         <input
@@ -56,37 +56,37 @@ export default function AudioUploader({ onTranscriptReady }) {
           style={{
             display: 'flex', alignItems: 'center', gap: '12px',
             padding: '0', borderRadius: '10px', overflow: 'hidden',
-            border: '1px solid #27272a', cursor: loading ? 'not-allowed' : 'pointer',
+            border: '1px solid var(--border)', cursor: loading ? 'not-allowed' : 'pointer',
             transition: 'border-color .2s',
           }}
-          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = '#3f3f46' }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#27272a' }}
+          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = 'var(--border-hi)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
         >
           {/* File button area */}
           <div style={{
-            padding: '10px 14px', background: '#18181b', borderRight: '1px solid #27272a',
+            padding: '10px 14px', background: 'var(--surface-2)', borderRight: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0,
           }}>
             <Upload size={14} style={{ color: '#6366f1' }} />
-            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', fontWeight: 500, color: '#a1a1aa', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', fontWeight: 700, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
               Choose file
             </span>
           </div>
           {/* File name area */}
           <span style={{
             fontFamily: "'JetBrains Mono', monospace", fontSize: '12px',
-            color: file ? '#f4f4f5' : '#52525b', paddingRight: '12px',
+            color: file ? 'var(--text)' : 'var(--text-3)', paddingRight: '12px',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {file ? file.name : 'No file selected'}
           </span>
           {file && (
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#52525b', marginLeft: 'auto', paddingRight: '12px', flexShrink: 0 }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'var(--text-3)', marginLeft: 'auto', paddingRight: '12px', flexShrink: 0 }}>
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </span>
           )}
         </div>
-        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#3f3f46', letterSpacing: '0.5px' }}>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.5px' }}>
           WAV, MP3, M4A, OGG, FLAC, WEBM — max 25 MB — drag and drop supported
         </p>
       </div>

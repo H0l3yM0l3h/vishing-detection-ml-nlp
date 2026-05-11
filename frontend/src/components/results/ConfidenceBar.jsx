@@ -38,7 +38,8 @@ export default function ConfidenceBar({ confidence, verdict }) {
         height: 10,
         borderRadius: 6,
         overflow: 'hidden',
-        background: 'rgba(255,255,255,0.06)',
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border)',
       }}>
         <div
           style={{

@@ -6,7 +6,7 @@ export default function StatusBadge({ source }) {
         ? 'text-[var(--blue)] border-[rgba(0,170,255,.3)]'
         : 'text-[var(--muted)] border-[var(--border)]'
       }`}
-      style={{ background: isHybrid ? 'rgba(0,170,255,.06)' : 'rgba(255,255,255,.02)' }}>
+      style={{ background: isHybrid ? 'rgba(0,170,255,.10)' : 'var(--surface-2)' }}>
       <span className={`w-1.5 h-1.5 rounded-full ${isHybrid ? 'bg-[var(--blue)]' : 'bg-[var(--muted)]'}`} />
       {isHybrid ? 'HYBRID (ML + AI)' : 'ML ONLY'}
     </span>

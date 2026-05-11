@@ -58,13 +58,13 @@ export default function Header() {
           <div>
             <div style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontWeight: 800, fontSize: '17px', color: '#F8FAFC', lineHeight: 1.1,
+              fontWeight: 800, fontSize: '17px', color: 'var(--text)', lineHeight: 1.1,
             }}>
               ShieldGuard
             </div>
             <div style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '9px', color: '#5A6475', letterSpacing: '1px', textTransform: 'uppercase',
+              fontSize: '9px', color: 'var(--text-3)', letterSpacing: '1px', textTransform: 'uppercase',
             }}>
               Vishing Detection
             </div>
@@ -88,7 +88,7 @@ export default function Header() {
                 {statusLabel}
               </div>
               {statusSub && (
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: '#3f3f46', letterSpacing: '0.5px', lineHeight: 1, marginTop: '3px' }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.5px', lineHeight: 1, marginTop: '3px' }}>
                   {statusSub}
                 </div>
               )}
@@ -96,7 +96,7 @@ export default function Header() {
           </div>
 
           {/* Divider */}
-          <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,.08)' }} />
+          <div style={{ width: '1px', height: '28px', background: 'var(--border)' }} />
 
           <ThemeSwitch />
 
@@ -140,7 +140,7 @@ export default function Header() {
               </div>
               <span style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontSize: '13px', fontWeight: 600, color: '#E4E8EF',
+                fontSize: '13px', fontWeight: 600, color: 'var(--text)',
               }}>
                 {user.username}
               </span>
@@ -152,7 +152,7 @@ export default function Header() {
             onClick={logout}
             style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '12px', fontWeight: 500,
-              color: '#5A6475', background: 'transparent',
+              color: 'var(--text-3)', background: 'transparent',
               border: '1px solid transparent',
               borderRadius: '8px', padding: '6px 12px',
               cursor: 'pointer', transition: 'all .2s', letterSpacing: '0.2px',
@@ -163,7 +163,7 @@ export default function Header() {
               e.currentTarget.style.background = 'rgba(239,68,68,.06)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#5A6475'
+              e.currentTarget.style.color = 'var(--text-3)'
               e.currentTarget.style.borderColor = 'transparent'
               e.currentTarget.style.background = 'transparent'
             }}

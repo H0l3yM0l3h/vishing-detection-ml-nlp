@@ -36,7 +36,7 @@ const STATS = [
 
 export default function MainDashboard() {
   const [modelChoice, setModelChoice] = useState('SVM')
-  const [inputMode,   setInputMode]   = useState('text')
+  const [, setInputMode] = useState('text')
   const { analyze, loading, result, error, progress } = useAnalysisStore()
 
   const handleTranscriptReady = useCallback(async (transcript, mode) => {
@@ -73,9 +73,9 @@ export default function MainDashboard() {
             {/* Stats strip */}
             <div style={{
               display: 'flex',
-              background: 'rgba(8,10,18,.7)',
+              background: 'var(--surface)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,.07)',
+              border: '1px solid var(--border)',
               borderRadius: '14px',
               marginBottom: '28px',
               overflow: 'hidden',
@@ -83,18 +83,18 @@ export default function MainDashboard() {
               {STATS.map((s, i) => (
                 <div key={s.label} style={{
                   flex: 1, padding: '16px 12px', textAlign: 'center',
-                  borderRight: i < STATS.length - 1 ? '1px solid rgba(255,255,255,.07)' : 'none',
+                  borderRight: i < STATS.length - 1 ? '1px solid var(--border)' : 'none',
                 }}>
                   {/* Value is WHITE, not purple */}
                   <div style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontWeight: 800, fontSize: '18px', color: '#F8FAFC',
+                    fontWeight: 800, fontSize: '18px', color: 'var(--text)',
                   }}>
                     {s.val}
                   </div>
                   <div style={{
                     fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '9px', color: '#5A6475',
+                    fontSize: '9px', color: 'var(--text-3)',
                     letterSpacing: '1px', textTransform: 'uppercase', marginTop: '3px',
                   }}>
                     {s.label}
@@ -122,12 +122,12 @@ export default function MainDashboard() {
                 }} />
                 <div style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700,
-                  fontSize: '16px', color: '#F8FAFC', marginBottom: '6px',
+                  fontSize: '16px', color: 'var(--text)', marginBottom: '6px',
                 }}>
                   {progress || 'Analysing transcript...'}
                 </div>
                 <div style={{
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#5A6475',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: 'var(--text-3)',
                 }}>
                   Hybrid analysis typically completes in 2–5 seconds
                 </div>
