@@ -43,12 +43,12 @@ export default function HeroSection() {
       {/* Subtle pill badge */}
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: '7px',
-        background: 'rgba(255,255,255,.05)',
-        border: '1px solid rgba(255,255,255,.1)',
+        background: 'var(--hero-pill-bg)',
+        border: '1px solid var(--hero-pill-border)',
         borderRadius: '20px', padding: '5px 16px 5px 10px', marginBottom: '26px',
       }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981', animation: 'blink 2s ease-in-out infinite' }} />
-        <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: '#A0ADB8', fontWeight: 500 }}>
+        <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: 'var(--hero-pill-text)', fontWeight: 700 }}>
           AI-Powered Voice Threat Detection
         </span>
       </div>
@@ -59,22 +59,22 @@ export default function HeroSection() {
         fontWeight: 800,
         fontSize: 'clamp(34px, 5.5vw, 56px)',
         lineHeight: 1.1,
-        color: '#F8FAFC',         /* WHITE */
+        color: 'var(--hero-text)',
         marginBottom: '12px',
         letterSpacing: '-0.5px',
       }}>
         Detect{' '}
         <span style={{ color: '#EF4444' }}>Voice Scam</span>
         {' '}Attacks<br />
-        <span style={{ color: '#F8FAFC' }}>Instantly</span>   {/* WHITE not purple */}
+        <span style={{ color: 'var(--hero-text)' }}>Instantly</span>
       </h1>
 
       {/* Typewriter — gray/silver, NOT purple */}
       <div style={{ height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '16px 0' }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', color: '#A0ADB8' }}>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', color: 'var(--hero-text-2)' }}>
           // {displayed}
           {typing && (
-            <span style={{ borderLeft: '2px solid #A0ADB8', marginLeft: '2px', animation: 'blink .8s step-end infinite' }}>&nbsp;</span>
+            <span style={{ borderLeft: '2px solid var(--hero-text-2)', marginLeft: '2px', animation: 'blink .8s step-end infinite' }}>&nbsp;</span>
           )}
         </span>
       </div>
@@ -82,7 +82,7 @@ export default function HeroSection() {
       {/* Description */}
       <p style={{
         fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '15px',
-        color: '#5A6475', maxWidth: '480px', margin: '0 auto', lineHeight: 1.75,
+        color: 'var(--hero-text-3)', maxWidth: '480px', margin: '0 auto', lineHeight: 1.75,
       }}>
         Record, upload, or paste a call transcript. Our hybrid intelligence engine
         combines ML classification, RAG pattern matching, and multi-agent LLM reasoning

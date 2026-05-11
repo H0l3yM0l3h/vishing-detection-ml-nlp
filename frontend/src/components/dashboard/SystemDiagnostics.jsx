@@ -36,7 +36,7 @@ function MetricBox({ value, label, color }) {
   return (
     <div style={{
       flex: 1,
-      background: 'rgba(255,255,255,.04)',
+      background: 'var(--surface-2)',
       border: `1px solid ${color}30`,
       borderRadius: '12px',
       padding: '18px 14px',
@@ -49,7 +49,7 @@ function MetricBox({ value, label, color }) {
       }}>{value}</div>
       <div style={{
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: '9px', color: '#5A6475',
+        fontSize: '9px', color: 'var(--text-3)',
         letterSpacing: '1.5px', textTransform: 'uppercase',
       }}>{label}</div>
     </div>
@@ -83,10 +83,10 @@ export default function SystemDiagnostics() {
 
   const accColor = data
     ? (data.accuracy >= 90 ? '#00e87a' : data.accuracy >= 80 ? '#f0a800' : '#e8203c')
-    : '#5A6475'
+    : 'var(--text-3)'
   const latColor = data
     ? (data.avg_latency_ms < 50 ? '#00e87a' : data.avg_latency_ms < 200 ? '#f0a800' : '#e8203c')
-    : '#5A6475'
+    : 'var(--text-3)'
 
   return (
     <div id="system-diagnostics" className="sg-card" style={{ marginTop: '24px', overflow: 'hidden' }}>
@@ -114,14 +114,14 @@ export default function SystemDiagnostics() {
             />
           )}
         </div>
-        <span style={{ color: '#5A6475', fontSize: '18px', lineHeight: 1 }}>
+        <span style={{ color: 'var(--text-3)', fontSize: '18px', lineHeight: 1 }}>
           {open ? '▲' : '▼'}
         </span>
       </button>
 
       {/* Collapsible body */}
       {open && (
-        <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+        <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
 
           {/* Run / Rerun button */}
           <div style={{ paddingTop: '16px', marginBottom: '20px' }}>
@@ -153,7 +153,7 @@ export default function SystemDiagnostics() {
             <span style={{
               marginLeft: '12px',
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '9px', color: '#5A6475',
+              fontSize: '9px', color: 'var(--text-3)',
             }}>
               10 labelled samples · SVM v3 · ML-only (no Groq required)
             </span>
@@ -195,17 +195,17 @@ export default function SystemDiagnostics() {
 
               {/* Per-sample table */}
               <div style={{
-                background: 'rgba(0,0,0,.25)', borderRadius: '10px',
-                border: '1px solid rgba(255,255,255,.06)', overflow: 'hidden',
+                background: 'var(--surface-2)', borderRadius: '10px',
+                border: '1px solid var(--border)', overflow: 'hidden',
               }}>
                 {/* Table header */}
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: '32px 90px 90px 90px 72px 72px 1fr',
                   padding: '8px 14px',
-                  borderBottom: '1px solid rgba(255,255,255,.06)',
+                  borderBottom: '1px solid var(--border)',
                   fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: '9px', color: '#5A6475',
+                  fontSize: '9px', color: 'var(--text-3)',
                   letterSpacing: '1px', textTransform: 'uppercase',
                 }}>
                   <span>#</span>
@@ -228,14 +228,14 @@ export default function SystemDiagnostics() {
                         display: 'grid',
                         gridTemplateColumns: '32px 90px 90px 90px 72px 72px 1fr',
                         padding: '9px 14px',
-                        borderBottom: '1px solid rgba(255,255,255,.04)',
+                        borderBottom: '1px solid var(--border)',
                         alignItems: 'center',
                         background: c.pass ? 'transparent' : 'rgba(232,32,60,.04)',
                       }}
                     >
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '11px', color: '#5A6475',
+                        fontSize: '11px', color: 'var(--text-3)',
                       }}>
                         {c.index < 10 ? `0${c.index}` : c.index}
                       </span>
@@ -259,7 +259,7 @@ export default function SystemDiagnostics() {
                       </span>
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '11px', color: '#d8eaf8',
+                        fontSize: '11px', color: 'var(--text)',
                       }}>
                         {Math.round(c.confidence * 100)}%
                       </span>
@@ -272,7 +272,7 @@ export default function SystemDiagnostics() {
                       </span>
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '10px', color: '#5A6475',
+                        fontSize: '10px', color: 'var(--text-3)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
                         {c.transcript_preview}

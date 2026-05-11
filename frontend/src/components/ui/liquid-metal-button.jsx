@@ -20,12 +20,12 @@ const movingMap = {
 
 const highlight =
   'radial-gradient(75% 181.15942028985506% at 50% 50%, #3275F8 0%, rgba(255, 255, 255, 0) 100%)'
+const MotionDiv = motion.div
 
 function HoverBorderGradient({
   children,
   containerClassName,
   className,
-  as: Element = 'button',
   duration = 1,
   clockwise = true,
   disabled = false,
@@ -52,25 +52,25 @@ function HoverBorderGradient({
   }, [clockwise, disabled, duration, hovered])
 
   return (
-    <Element
+    <button
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       disabled={disabled}
       className={cn(
-        'relative flex h-min w-fit flex-col flex-nowrap content-center items-center justify-center gap-10 overflow-visible rounded-full border border-white/10 bg-black/40 box-decoration-clone p-px backdrop-blur-sm transition duration-500 hover:bg-black/60 disabled:cursor-not-allowed disabled:opacity-45',
+        'sg-liquid-shell relative flex h-min w-fit flex-col flex-nowrap content-center items-center justify-center gap-10 overflow-visible rounded-full border border-white/10 bg-black/40 box-decoration-clone p-px backdrop-blur-sm transition duration-500 hover:bg-black/60 disabled:cursor-not-allowed disabled:opacity-45',
         containerClassName,
       )}
       {...props}
     >
       <div
         className={cn(
-          'z-10 w-auto rounded-[inherit] bg-black px-4 py-2 text-white',
+          'sg-liquid-inner z-10 w-auto rounded-[inherit] bg-black px-4 py-2 text-white disabled:text-slate-500',
           className,
         )}
       >
         {children}
       </div>
-      <motion.div
+      <MotionDiv
         className="absolute inset-0 z-0 flex-none overflow-hidden rounded-[inherit]"
         style={{
           filter: 'blur(2px)',
@@ -87,7 +87,7 @@ function HoverBorderGradient({
         transition={{ ease: 'linear', duration }}
       />
       <div className="absolute inset-0.5 z-[1] flex-none rounded-[100px] bg-black" />
-    </Element>
+    </button>
   )
 }
 
@@ -131,7 +131,7 @@ export function LiquidMetalButton({
         disabled={disabled || loading}
         aria-label={label}
         containerClassName="w-full"
-        className="flex h-[46px] items-center justify-center rounded-full px-6 font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-[0.4px] text-slate-100"
+        className="flex h-[46px] w-full items-center justify-center rounded-full px-6 font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-[0.4px] text-slate-100"
         style={{ width: buttonWidth }}
       >
         {loading && (

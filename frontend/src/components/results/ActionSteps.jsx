@@ -9,7 +9,7 @@ export default function ActionSteps({ steps }) {
             <span className="font-display text-sm font-bold text-[var(--blue)] opacity-50 mt-0.5">
               {String(i + 1).padStart(2, '0')}
             </span>
-            <span className="text-sm text-[var(--text)] leading-relaxed">{step}</span>
+            <span className="text-[15px] text-[var(--text)] leading-relaxed">{step}</span>
           </div>
         ))}
       </div>

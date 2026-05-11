@@ -15,7 +15,7 @@ export default function VerdictCard({ verdict, confidence, source }) {
       <div style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-        color: '#5A6475', marginBottom: '14px',
+        color: 'var(--text-3)', marginBottom: '14px',
       }}>
         Threat Classification
       </div>
@@ -29,17 +29,17 @@ export default function VerdictCard({ verdict, confidence, source }) {
       </div>
 
       {/* Confidence — WHITE value */}
-      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '14px', color: '#A0ADB8' }}>
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '14px', color: 'var(--text-2)' }}>
         Confidence:{' '}
-        <strong style={{ color: '#F8FAFC', fontSize: '16px' }}>{(confidence * 100).toFixed(1)}%</strong>
+        <strong style={{ color: 'var(--text)', fontSize: '16px' }}>{(confidence * 100).toFixed(1)}%</strong>
       </div>
 
       <div style={{
         marginTop: '10px', display: 'inline-block',
-        background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)',
+        background: 'var(--surface-2)', border: '1px solid var(--border)',
         borderRadius: '6px', padding: '3px 10px',
       }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#5A6475' }}>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'var(--text-3)' }}>
           {source === 'hybrid' ? 'Hybrid ML + AI' : 'ML Only'}
         </span>
       </div>

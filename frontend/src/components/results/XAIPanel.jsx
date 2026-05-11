@@ -42,7 +42,7 @@ export default function XAIPanel({ keywords }) {
                 style={{
                   fontFamily: "'Share Tech Mono', monospace",
                   fontSize: '12px',
-                  color: '#d8eaf8',
+                  color: 'var(--text-2)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -54,9 +54,9 @@ export default function XAIPanel({ keywords }) {
               <div style={{
                 height: '10px',
                 borderRadius: '999px',
-                background: 'rgba(255,255,255,.06)',
+                background: 'var(--surface-2)',
                 overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,.06)',
+                border: '1px solid var(--border)',
               }}>
                 <div style={{
                   width: `${pct}%`,

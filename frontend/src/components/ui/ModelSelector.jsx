@@ -16,12 +16,12 @@ export default function ModelSelector({ value, onChange }) {
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-[#030a12] border border-[var(--border)] rounded-lg px-4 py-2.5
+          className="w-full bg-[var(--field-bg)] border border-[var(--border)] rounded-lg px-4 py-2.5
             text-[var(--text)] font-mono text-sm outline-none
             focus:border-[rgba(0,170,255,.5)] cursor-pointer appearance-none"
         >
           {MODELS.map((m) => (
-            <option key={m} value={m} style={{ background: '#030a12' }}>{m}</option>
+            <option key={m} value={m}>{m}</option>
           ))}
         </select>
       </div>

@@ -18,11 +18,13 @@ const C = {
   indigo: '#6366F1',
   blue:   '#3B82F6',
   cyan:   '#06B6D4',
-  muted:  '#5A6475',
-  text2:  '#A0ADB8',
-  text:   '#F8FAFC',
-  border: 'rgba(255,255,255,0.07)',
-  surface:'rgba(8,10,18,0.72)',
+  muted:  'var(--text-3)',
+  text2:  'var(--text-2)',
+  text:   'var(--hero-text)',
+  cardText: 'var(--text)',
+  border: 'var(--border)',
+  grid:   'rgba(100,116,139,0.22)',
+  surface:'var(--surface)',
 }
 
 const PIE_COLORS = { Vishing: C.red, Safe: C.green, Inconclusive: C.amber }
@@ -80,7 +82,7 @@ const ChartTooltip = ({ active, payload, label }) => {
     }}>
       {label && <div style={{ color: C.muted, marginBottom: 4 }}>{label}</div>}
       {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color || C.text }}>
+        <div key={i} style={{ color: p.color || C.cardText }}>
           {p.name}: <strong>{p.value}</strong>
         </div>
       ))}
@@ -187,8 +189,8 @@ export default function AdminDashboard() {
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase',
                     color: C.text2,
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
                     borderRadius: 8, padding: '9px 18px', cursor: 'pointer',
                   }}
                 >
@@ -308,7 +310,7 @@ export default function AdminDashboard() {
                             <stop offset="95%" stopColor={C.indigo} stopOpacity={0}    />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
                         <XAxis dataKey="date" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: C.muted }} />
                         <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: C.muted }} allowDecimals={false} />
                         <Tooltip content={<ChartTooltip />} />
@@ -327,7 +329,7 @@ export default function AdminDashboard() {
                   <ChartCard title="Confidence Distribution">
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={data.confidence_distribution} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
                         <XAxis dataKey="range" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fill: C.muted }} />
                         <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: C.muted }} allowDecimals={false} />
                         <Tooltip content={<ChartTooltip />} />
@@ -378,7 +380,7 @@ export default function AdminDashboard() {
                                 <span style={{ color: C.muted }}>{u.scans}</span>
                               </div>
                               <div style={{
-                                height: 4, background: 'rgba(255,255,255,0.05)',
+                                height: 4, background: 'var(--surface-2)',
                                 borderRadius: 4, overflow: 'hidden',
                               }}>
                                 <div style={{
@@ -428,7 +430,7 @@ export default function AdminDashboard() {
                       <span style={{
                         fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted,
                       }}>
-                        {s.label} — <span style={{ color: C.text }}>{s.detail}</span>
+                        {s.label} — <span style={{ color: C.cardText }}>{s.detail}</span>
                       </span>
                     </div>
                   ))}
