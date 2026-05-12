@@ -1,6 +1,7 @@
-export default function RateLimitBar({ used, max = 30 }) {
+export default function RateLimitBar({ used, max = 30, loading = false }) {
   const pct = Math.min((used / max) * 100, 100)
   const color = pct > 80 ? 'var(--red)' : pct > 50 ? 'var(--amber)' : 'var(--blue)'
+  const label = loading ? '...' : `${used}/${max}`
 
   return (
     <div className="sg-card !p-3 flex items-center gap-4 mb-6">
@@ -12,7 +13,7 @@ export default function RateLimitBar({ used, max = 30 }) {
           style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="font-mono text-[10px] tracking-wider" style={{ color }}>
-        {used}/{max}
+        {label}
       </span>
     </div>
   )

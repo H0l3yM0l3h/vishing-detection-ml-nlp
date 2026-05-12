@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import HeroSection from '../components/dashboard/HeroSection'
@@ -24,6 +24,7 @@ import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
 import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
+import { useRateLimitStore } from '../hooks/useRateLimit'
 
 const STATS = [
   { val: '98.9%', label: 'ML Accuracy' },
@@ -36,11 +37,22 @@ const STATS = [
 export default function MainDashboard() {
   const [, setInputMode] = useState('text')
   const { analyze, loading, result, error, progress } = useAnalysisStore()
+  const {
+    used: scanUsed,
+    max: scanMax,
+    loading: scanUsageLoading,
+    fetchUsage,
+  } = useRateLimitStore()
+
+  useEffect(() => {
+    fetchUsage()
+  }, [fetchUsage])
 
   const handleTranscriptReady = useCallback(async (transcript, mode) => {
     setInputMode(mode)
     await analyze(transcript, 'SVM', mode)
-  }, [analyze])
+    await fetchUsage()
+  }, [analyze, fetchUsage])
 
   const isVishing = result?.verdict?.toLowerCase().includes('vishing') || result?.verdict?.toLowerCase().includes('hang up')
   const isSafe    = result?.verdict?.toLowerCase().includes('safe')    || result?.verdict?.toLowerCase().includes('legitimate')
@@ -102,7 +114,7 @@ export default function MainDashboard() {
             </div>
 
             <StepGuide />
-            <RateLimitBar used={0} />
+            <RateLimitBar used={scanUsed} max={scanMax} loading={scanUsageLoading} />
 
             <InputTabs onTranscriptReady={handleTranscriptReady} />
 

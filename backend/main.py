@@ -460,6 +460,20 @@ async def history(limit: int = 10, user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════
 # HEALTH ENDPOINT
 # ═══════════════════════════════════════════════
+@app.get("/api/rate-limit")
+async def rate_limit_status(user: dict = Depends(get_current_user)):
+    """Return the current user's scan usage for the rolling 1-hour window."""
+    username = user["sub"]
+    allowed, used = check_rate_limit(username)
+    return {
+        "used": used,
+        "max": MAX_ANALYSES_PER_HOUR,
+        "remaining": max(0, MAX_ANALYSES_PER_HOUR - used),
+        "allowed": allowed,
+        "window": "1 hour",
+    }
+
+
 @app.get("/api/health")
 async def health(request: Request):
     groq_ok = check_groq_available()
