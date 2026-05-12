@@ -7,7 +7,6 @@ import RateLimitBar from '../components/dashboard/RateLimitBar'
 import ScanHistory from '../components/dashboard/ScanHistory'
 import SystemDiagnostics from '../components/dashboard/SystemDiagnostics'
 import InputTabs from '../components/input/InputTabs'
-import ModelSelector from '../components/ui/ModelSelector'
 import StatusBadge from '../components/ui/StatusBadge'
 import InfoBox from '../components/ui/InfoBox'
 import WarnBox from '../components/ui/WarnBox'
@@ -35,14 +34,13 @@ const STATS = [
 ]
 
 export default function MainDashboard() {
-  const [modelChoice, setModelChoice] = useState('SVM')
   const [, setInputMode] = useState('text')
   const { analyze, loading, result, error, progress } = useAnalysisStore()
 
   const handleTranscriptReady = useCallback(async (transcript, mode) => {
     setInputMode(mode)
-    await analyze(transcript, modelChoice, mode)
-  }, [modelChoice, analyze])
+    await analyze(transcript, 'SVM', mode)
+  }, [analyze])
 
   const isVishing = result?.verdict?.toLowerCase().includes('vishing') || result?.verdict?.toLowerCase().includes('hang up')
   const isSafe    = result?.verdict?.toLowerCase().includes('safe')    || result?.verdict?.toLowerCase().includes('legitimate')
@@ -105,9 +103,6 @@ export default function MainDashboard() {
 
             <StepGuide />
             <RateLimitBar used={0} />
-            <div style={{ marginBottom: '20px' }}>
-              <ModelSelector value={modelChoice} onChange={setModelChoice} />
-            </div>
 
             <InputTabs onTranscriptReady={handleTranscriptReady} />
 

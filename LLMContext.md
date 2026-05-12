@@ -1,12 +1,30 @@
 # ShieldGuard — Complete System Context
-> **Version:** 3.5 - Admin Analytics Dashboard
+> **Version:** 3.7 - SVM-Only Production Deployment
 > **Project:** Vishing Detection System using ML, NLP, LLM & Multi-Agent AI
 > **Type:** FYP — Cybersecurity
-> **Status:** IMPLEMENTED — Phase 1 (ML v3) + Phase 2 (LLM + RAG + Groq API) + Phase 3 (React + FastAPI) + Phase 4 (Admin Analytics)
+> **Status:** IMPLEMENTED — Phase 1 (SVM v3) + Phase 2 (LLM + RAG + Groq API) + Phase 3 (React + FastAPI) + Phase 4 (Admin Analytics) + Phase 5 (Research-Backed Literature Alignment) + Phase 6 (SVM-Only Production Deployment)
 
 ---
 
 ## Changelog
+
+### v3.7 — 2026-05-12 — SVM-Only Production Deployment
+
+**Production Model Simplification:**
+- Standardized the deployed application on one final model: `models/svm_model.pkl`.
+- Moved non-production artifacts (`neural_network.keras`, `svm_model_v2.pkl`) into `models/legacy/` alongside LR/RF/NN baseline models.
+- Updated `backend/models_loader.py` so the production backend loads only SVM v3 and no longer requires LR, RF, or NN artifacts at startup.
+- Removed the advanced model-selection UI from the React dashboard and legacy Streamlit interface.
+- Documentation now states the final model decision clearly: LR, RF, and NN were evaluated experimentally, but SVM v3 was selected because it provides the best balance of accuracy, speed, calibrated probability output, and explainability.
+
+### v3.6 — 2026-05-12 — Research Evidence Map & Literature Review Alignment
+
+**Chapter 2 Research Upgrade:**
+- Added a curated 2023-2026 literature evidence map focused on vishing, voice phishing, AI/ML detection, audio-transcript pipelines, LLM reasoning, RAG, explainability, and adversarial robustness.
+- Prioritized papers that directly support ShieldGuard's architecture: speech-to-text input, transcript classification, TF-IDF/SVM baseline strength, deep learning alternatives, RAG-assisted context retrieval, LLM review, and user-facing explanations.
+- Removed duplicated research positioning by grouping studies by their role in the system rather than listing similar papers repeatedly.
+- Added a clear "How ShieldGuard maps to the literature" subsection so examiners can immediately see why each research stream matters.
+- Wording is intentionally plain and defense-ready: technical enough for high marks, readable enough for non-specialist evaluators.
 
 ### v3.5 — 2026-05-06 — Admin Analytics Dashboard
 
@@ -54,7 +72,7 @@
 - Updated health endpoints (`/api/health`, `/api/health_detailed`) to check Groq API status.
 - Frontend labels updated: footer tags, diagnostics, dashboard messages.
 
-**Impact on ML accuracy:** Zero. SVM v3, Neural Network, ChromaDB RAG, TF-IDF XAI are all unchanged.
+**Impact on ML accuracy:** Zero. SVM v3, ChromaDB RAG, and TF-IDF XAI are unchanged.
 
 ### v3.3 - 2026-04-29 - ML v3 Limited-Dataset Retraining
 
@@ -112,7 +130,7 @@
 - Promoted `svm_model_v2.pkl` to `models/svm_model.pkl` (production).
 - Moved all v1 models to `models/legacy/` (LR, RF, NN h5, vectorizer).
 - Updated `backend/inference.py`: `get_explanation` now supports both v1 (single TF-IDF) and v2 (FeatureUnion) pipeline structures automatically.
-- Updated `backend/models_loader.py`: vectorizer is now optional (baked into SVM pipeline); legacy LR and RF loaded from `models/legacy/` if present.
+- Updated `backend/models_loader.py`: vectorizer is now optional because the SVM pipeline embeds its own FeatureUnion.
 - Added `notebooks/02_improved_ml_training.py`: complete v2 training script with cell-by-cell Jupyter comments.
 
 ### v3.0 — Earlier — React + FastAPI Migration
@@ -128,6 +146,53 @@
 The system has two frontends:
 - **Legacy:** Streamlit (monolithic, in `app/`)
 - **Current:** React + Tailwind CSS (decoupled, in `frontend/`) with FastAPI backend (`backend/`)
+
+---
+
+## Research Evidence Map (2023-2026)
+
+This section aligns ShieldGuard with the strongest recent research for a Chapter 2 literature review. The focus is not "AI for phishing" in general; it is specifically the research path that justifies a practical vishing detector: audio capture, transcription, text classification, retrieval of known scam patterns, LLM-assisted reasoning, and explainable user warnings.
+
+### Core Vishing and Voice-Phishing Papers
+
+| Year | Paper | Why it matters for ShieldGuard | Link |
+|---|---|---|---|
+| 2026 | Automatically Detecting Voice Phishing: A Large Audio Model Approach | Shows that modern voice-phishing detection is moving beyond keyword rules into large audio models and deep learning. This supports ShieldGuard's direction of treating vishing as an AI-supported speech security problem, not only a text-filtering task. | https://doi.org/10.25300/MISQ/2025/19532 |
+| 2026 | A Real-Time AI-based Framework for Vishing Detection | Directly supports ShieldGuard's goal of fast, user-facing vishing analysis. The paper frames vishing defense as a real-time assistant that monitors spoken communication and explains risk while the user can still act. | https://www.medien.ifi.lmu.de/pubdb/publications/pub/jia2026esorics/jia2026esorics.pdf |
+| 2025 | Vishing: Detecting Social Engineering in Spoken Communication — A First Survey & Urgent Roadmap | Strong foundation for Chapter 2 because it explains why vishing is different from normal phishing: persuasion, authority, urgency, deception, and voice interaction must be interpreted together. | https://www.sciencedirect.com/science/article/pii/S0885230825000270 |
+| 2025 | A Multimodal Voice Phishing Detection System Integrating Text and Audio Analysis | Closely matches ShieldGuard's pipeline because it combines speech-to-text, text classification, and audio cues. It supports the idea that transcript analysis and audio processing should work together in real deployments. | https://www.mdpi.com/2076-3417/15/20/11170 |
+| 2025 | Detecting Voice Phishing with Precision: Fine-Tuning Small Language Models | Supports the LLM side of ShieldGuard. It shows that Llama-family models can be adapted for voice-phishing judgment when guided by expert criteria, which is similar to ShieldGuard's forensic and safety-review prompts. | https://arxiv.org/abs/2506.06180 |
+| 2025 | Talking Like a Phisher: LLM-Based Attacks on Voice Phishing Classifiers | Important for limitations and future work. It shows that LLM-generated scam scripts can evade ML classifiers, which justifies ShieldGuard's layered design instead of trusting one model blindly. | https://arxiv.org/abs/2507.16291 |
+| 2024 | Korean Voice Phishing Detection Applying NER With Key Tags and Sentence-Level N-Gram | Supports feature engineering for transcript-based vishing detection. Named entities, key tags, and sentence-level n-grams are conceptually close to ShieldGuard's phrase indicators and TF-IDF features. | https://ieeexplore.ieee.org/document/10496052/ |
+| 2023 | Attention-Based 1D CNN-BiLSTM Hybrid Model Enhanced with FastText Word Embedding for Korean Voice Phishing Detection | Useful comparison against ShieldGuard's SVM. It shows that deep learning with attention can capture sequence patterns, while ShieldGuard chooses a faster and more explainable ML-first approach for real-time use. | https://www.mdpi.com/2227-7390/11/14/3217 |
+| 2023 | Real-Time Korean Voice Phishing Detection Based on Machine Learning Approaches | Strong baseline reference for real-time ML detection. It supports the argument that classical ML can be effective and fast for vishing transcripts, especially when deployment speed matters. | https://doi.org/10.1007/s12652-021-03587-x |
+
+### Supporting AI, RAG, and Explainability Papers
+
+| Year | Paper | Why it matters for ShieldGuard | Link |
+|---|---|---|---|
+| 2026 | User-Centric Phishing Detection: A RAG and LLM-Based Approach | Supports ShieldGuard's RAG layer: retrieve similar known scam cases, then use an LLM to explain the risk in user-friendly language. | https://arxiv.org/abs/2601.21261 |
+| 2025 | EXPLICATE: Enhancing Phishing Detection through Explainable AI and LLM-Powered Interpretability | Supports ShieldGuard's XAI panels, highlighted transcript, tactic labels, and natural-language explanations. It is especially useful for arguing that detection systems must explain why something is suspicious. | https://arxiv.org/abs/2503.20796 |
+| 2024 | Enhancing Phishing Email Detection with Context-Augmented Open Large Language Models | Although email-focused, it supports context-augmented LLM detection. This is relevant to ShieldGuard's use of retrieved scam patterns before LLM review. | https://journals.hs-offenburg.de/index.php/urai/article/view/23 |
+| 2024 | Digital Deception: Generative Artificial Intelligence in Social Engineering and Phishing | Useful background for the threat landscape. It explains why generative AI increases the scale and realism of social engineering attacks, including vishing. | https://link.springer.com/article/10.1007/s10462-024-10973-2 |
+| 2024 | PITCH: AI-assisted Tagging of Deepfake Audio Calls using Challenge-Response | Supports the audio-risk side of the literature review, especially when discussing deepfake or synthetic-voice calls as an extension of vishing defense. | https://arxiv.org/abs/2402.18085 |
+
+### How ShieldGuard Maps to the Literature
+
+| Literature theme | What recent research says | ShieldGuard implementation |
+|---|---|---|
+| Real-time vishing protection | Detection must be fast enough to warn users during or immediately after a suspicious call. | FastAPI backend, lightweight SVM v3 inference, and dashboard feedback designed for quick analysis. |
+| Speech-to-text pipeline | Voice phishing can be converted into transcripts so NLP models can analyze scam language. | Audio recording/upload is transcribed by Groq Whisper `large-v3-turbo` before classification. |
+| Classical ML baseline | SVM, n-gram, and feature-engineering methods remain valuable when speed, transparency, and small datasets matter. | Calibrated LinearSVC with char+word TF-IDF FeatureUnion achieves 98.88% clean held-out accuracy. |
+| Deep learning alternatives | CNN, BiLSTM, attention, and large audio models can learn richer sequential and acoustic patterns. | NN was evaluated experimentally, but the deployed app keeps SVM v3 for speed, stability, and explainability; multimodal audio features remain future work. |
+| RAG context retrieval | Similar known cases improve reasoning and make AI explanations more grounded. | ChromaDB retrieves top similar scam transcripts before LLM review. |
+| LLM-assisted reasoning | LLMs can classify tactics, summarize evidence, and provide human-readable warnings. | Groq Llama 3.3 70B produces forensic analysis, scam type, tactics, and action steps. |
+| Explainable AI | Users need to understand the warning, not only receive a label. | Top TF-IDF keywords, highlighted transcript, tactic chips, similar cases, and action steps are shown in the UI. |
+| Adversarial robustness | LLM-generated vishing scripts can bypass simple classifiers. | ML-first decision, RAG evidence, LLM advisory review, divergence detection, and inconclusive states reduce overreliance on one model. |
+
+### Chapter 2 Positioning Statement
+
+ShieldGuard contributes a practical hybrid architecture for vishing detection by combining the speed and explainability of classical ML with the contextual reasoning of RAG and LLMs. Recent studies show that vishing is not only a text classification problem; it is a spoken social-engineering problem involving urgency, authority, secrecy, financial pressure, and increasingly AI-generated speech. Therefore, ShieldGuard is designed as a layered defense: Whisper converts speech to text, SVM provides fast risk scoring, ChromaDB retrieves similar scam patterns, and the LLM converts technical evidence into a clear warning and safe action plan for the user.
 
 ---
 
@@ -280,7 +345,7 @@ The system has two frontends:
 - **Configuration:** Via `CORS_ORIGINS` environment variable
 
 ### Data Privacy
-- **ML Models:** SVM, Neural Network, TF-IDF, ChromaDB all run locally — no data sent externally for ML inference
+- **ML Model:** The deployed classifier is SVM v3 (`models/svm_model.pkl`); TF-IDF feature extraction and ChromaDB retrieval run locally.
 - **LLM + Whisper:** Transcripts are sent to Groq Cloud API for analysis. Groq's API terms state they do not train on API data.
 - **Architecture supports local fallback:** The system can be reconfigured to use local Ollama for air-gapped/enterprise deployments
 - **Credential Storage:** Supabase keys and Groq API key in `.env` file (gitignored)
@@ -342,20 +407,26 @@ The system has two frontends:
 - **Labels:** "vishing" and "safe"
 - **Preprocessing (v3):** ASCII normalization → NLTK Lemmatization → FeatureUnion TF-IDF
 
-### Active Models (v3 - Production)
+### Active Model (v3 - Production)
 | Model | File | Accuracy | F1-macro | Note |
 |---|---|---|---|---|
-| SVM v3 | `models/svm_model.pkl` | **98.88%** | **0.9869** | FeatureUnion (char+word) + calibrated LinearSVC (best C=2.0, threshold=0.80) |
-| Neural Network | `models/neural_network.keras` | ~98.7% | ~0.983 | Keras CNN, unchanged from v1 |
+| SVM v3 | `models/svm_model.pkl` | **98.88%** | **0.9869** | Final deployed classifier. FeatureUnion (char+word) + calibrated LinearSVC (best C=2.0, threshold=0.80). |
+
+### Model Selection Rationale
+- LR, RF, and NN were evaluated during experimentation and retained as legacy/reference artifacts.
+- SVM v3 was selected for deployment because it provides the best practical balance of clean-test performance, millisecond-level inference, calibrated probability output, and transparent TF-IDF explanations.
+- Keeping a single production model reduces startup dependencies, avoids model-selection confusion for users, and makes Chapter 4 evaluation easier to defend.
 
 ### Legacy Models (v1 — Reference Only)
-Moved to `models/legacy/` — still loaded by `models_loader.py` for backward compatibility.
+Moved to `models/legacy/` for documentation, comparison, and examiner discussion. These artifacts are not loaded by the deployed backend.
 | Model | File | Accuracy | Note |
 |---|---|---|---|
 | SVM v1 | `models/legacy/svm_model_v1.pkl` | 98.5% | Single char_wb TF-IDF + CalibratedLinearSVC |
 | Logistic Regression | `models/legacy/logistic_regression_model_v1.pkl` | ~98.5% | — |
 | Random Forest | `models/legacy/rf_model_v1.pkl` | ~97.8% | — |
 | Vectorizer | `models/legacy/vectorizer_v1.pkl` | — | Standalone TF-IDF (no longer needed in v2) |
+| Neural Network | `models/legacy/neural_network.keras`, `models/legacy/neural_network_v1.h5` | ~98.7% | Experimental deep-learning baseline, not deployed |
+| SVM v2 | `models/legacy/svm_model_v2.pkl` | reference | Previous SVM iteration before v3 |
 
 ### v3 Training Improvements
 | Improvement | Detail | Result |
@@ -369,7 +440,7 @@ Moved to `models/legacy/` — still loaded by `models_loader.py` for backward co
 ### Inference Interface
 - **SVM v3:** `run_inference_detailed()` returns label, confidence, `vishing_probability`, `safe_probability`, and ML risk band
   - The pipeline internally applies FeatureUnion vectorization — no separate vectorizer call needed.
-- **Neural Network:** `nn.predict(tf.constant([text])) → float` (sigmoid, >0.5 = vishing)
+- **Legacy NN/LR/RF:** Kept only for report comparison; not loaded by the production app.
 
 ### Explainability (XAI)
 - **SVM:** TF-IDF coefficient extraction via `get_explanation()` in `inference.py`
@@ -440,7 +511,7 @@ VishingDetection/
 │
 ├── backend/                      ← FastAPI backend (current)
 │   ├── main.py                   ← FastAPI app: lifespan, endpoints, JWT auth
-│   ├── models_loader.py          ← ML model loading (joblib, keras)
+│   ├── models_loader.py          ← Production SVM model loading
 │   ├── inference.py              ← run_inference, get_explanation, detect_suspicious_phrases
 │   ├── hybrid_engine.py          ← ML→RAG→Groq cascade orchestrator
 │   ├── rag_module.py             ← ChromaDB scam library + similarity search
@@ -480,7 +551,7 @@ VishingDetection/
 │           │                       TacticChips, RAGSimilarCases, ActionSteps,
 │           │                       SafetyAdvice, DivergenceWarning
 │           ├── dashboard/        ← HeroSection, StepGuide, RateLimitBar, ScanHistory
-│           └── ui/               ← StatusBadge, InfoBox, WarnBox, ModelSelector
+│           └── ui/               ← StatusBadge, InfoBox, WarnBox
 │
 ├── app/                          ← Streamlit frontend (legacy, Phase 1+2)
 │   ├── main.py                   ← Streamlit entry point
@@ -493,14 +564,15 @@ VishingDetection/
 │   └── agents/
 │
 ├── models/                       ← Trained ML models
-│   ├── svm_model.pkl             ← ACTIVE: SVM v3 (FeatureUnion, C=2.0, threshold=0.80)
+│   ├── svm_model.pkl             ← ACTIVE: final SVM v3 (FeatureUnion, C=2.0, threshold=0.80)
 │   ├── svm_model_metadata.json   ← v3 training metrics and threshold metadata
-│   ├── neural_network.keras      ← ACTIVE: Keras CNN (unchanged from v1)
-│   └── legacy/                   ← v1 models (reference / backward compat)
+│   └── legacy/                   ← experimental/reference models, not loaded in production
 │       ├── svm_model_v1.pkl
 │       ├── logistic_regression_model_v1.pkl
 │       ├── rf_model_v1.pkl
 │       ├── vectorizer_v1.pkl
+│       ├── svm_model_v2.pkl
+│       ├── neural_network.keras
 │       └── neural_network_v1.h5
 │
 ├── data/
