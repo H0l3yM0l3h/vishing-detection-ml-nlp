@@ -2,8 +2,6 @@ import streamlit as st
 from pathlib import Path
 import joblib
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
 import re
 import tempfile
 import os
@@ -26,14 +24,10 @@ MODELS_DIR = BASE_DIR / "models"
 
 @st.cache_resource
 def load_resources():
-    vectorizer = joblib.load(MODELS_DIR / "vectorizer.pkl")
     ml_models  = {
-        "SVM":                 joblib.load(MODELS_DIR / "svm_model.pkl"),
-        "Logistic Regression": joblib.load(MODELS_DIR / "logistic_regression_model.pkl"),
-        "Random Forest":       joblib.load(MODELS_DIR / "rf_model.pkl"),
+        "SVM": joblib.load(MODELS_DIR / "svm_model.pkl"),
     }
-    nn = load_model(MODELS_DIR / "neural_network.keras", compile=False)
-    return vectorizer, ml_models, nn
+    return None, ml_models, None
 
 @st.cache_resource
 def load_whisper_model():
@@ -82,26 +76,36 @@ def build_highlighted_transcript(text: str, phrases: list) -> str:
 # EXPLAINABILITY
 # ═══════════════════════════════════════════════
 def explain_prediction(model, X, feature_names, top_n=5):
-    if hasattr(model, "named_steps"):
-        coef = model.named_steps["clf"].coef_[0]
+    clf_step = model.named_steps["clf"]
+    if hasattr(clf_step, "calibrated_classifiers_"):
+        inner = clf_step.calibrated_classifiers_[0].estimator
+        if hasattr(inner, "coef_"):
+            coef = inner.coef_[0]
+        else:
+            coef = list(inner.named_steps.values())[-1].coef_[0]
     else:
-        coef = model.calibrated_classifiers_[0].estimator.named_steps["clf"].coef_[0]
+        coef = clf_step.coef_[0]
     limit    = min(len(feature_names), len(coef))
     indices  = [i for i in X.nonzero()[1] if i < limit]
     contribs = {feature_names[i]: float(coef[i]) for i in indices}
     return sorted(contribs.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
 
 def get_explanation(model_choice: str, text: str):
-    if model_choice not in ["SVM", "Logistic Regression"]:
+    if model_choice != "SVM":
         return []
-    if model_choice == "Logistic Regression":
-        m     = models["Logistic Regression"]
-        tfidf = m.named_steps["tfidf"]
+    m = models["SVM"]
+    feat_step = m.named_steps.get("features") or m.named_steps.get("tfidf")
+    if feat_step is None:
+        return []
+    X = feat_step.transform([text])
+    if hasattr(feat_step, "transformer_list"):
+        feats = []
+        for name, transformer in feat_step.transformer_list:
+            if hasattr(transformer, "get_feature_names_out"):
+                feats.extend([f"[{name}] {fn}" for fn in transformer.get_feature_names_out()])
+        feats = np.array(feats)
     else:
-        m     = models["SVM"]
-        tfidf = m.calibrated_classifiers_[0].estimator.named_steps["tfidf"]
-    X     = tfidf.transform([text])
-    feats = tfidf.get_feature_names_out()
+        feats = feat_step.get_feature_names_out()
     return explain_prediction(m, X, feats)
 
 # ═══════════════════════════════════════════════
@@ -116,14 +120,9 @@ def insufficient_evidence(text: str, confidence: float,
     return False, ""
 
 def run_inference(text: str, model_choice: str):
-    if model_choice == "Neural Network":
-        prob  = float(nn_model.predict(tf.constant([text]), verbose=0).reshape(-1)[0])
-        label = "vishing" if prob >= 0.5 else "safe"
-        conf  = prob if label == "vishing" else 1.0 - prob
-    else:
-        m     = models[model_choice]
-        label = m.predict([text])[0]
-        conf  = float(np.max(m.predict_proba([text]))) if hasattr(m, "predict_proba") else 0.5
+    m = models["SVM"]
+    label = m.predict([text])[0]
+    conf = float(np.max(m.predict_proba([text]))) if hasattr(m, "predict_proba") else 0.5
     return label, conf
 
 def transcribe_audio(audio_bytes: bytes, suffix: str) -> str:
@@ -1308,18 +1307,7 @@ def render_app():
             final_text = typed
             input_mode = "text"
 
-    # ── ADVANCED SETTINGS ────────────────────
-    with st.expander("Advanced Settings — AI Model Selection"):
-        model_choice = st.selectbox(
-            "Detection Engine",
-            ["SVM", "Logistic Regression", "Random Forest", "Neural Network"],
-            help="SVM gives the best balance of speed and accuracy for this dataset.",
-        )
-        st.markdown("""
-        <div class="info-box">
-            SVM and Logistic Regression produce full AI Reasoning explanations.
-            Random Forest and Neural Network provide verdict and confidence only.
-        </div>""", unsafe_allow_html=True)
+    model_choice = "SVM"
 
     st.markdown('</div>', unsafe_allow_html=True)  # close .card
 
@@ -1409,7 +1397,7 @@ def render_app():
     st.markdown("""
     <div class="ftr">
         <div class="ftr-t">SHIELDGUARD v2.0 — CYBERSECURITY FYP</div>
-        <div class="ftr-t">SVM + LR + RF + NN &nbsp;|&nbsp; WHISPER ASR &nbsp;|&nbsp; RAG + ChromaDB &nbsp;|&nbsp; CrewAI + LLM &nbsp;|&nbsp; XAI</div>
+        <div class="ftr-t">SVM v3 &nbsp;|&nbsp; WHISPER ASR &nbsp;|&nbsp; RAG + ChromaDB &nbsp;|&nbsp; CrewAI + LLM &nbsp;|&nbsp; XAI</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)  # close .wrap

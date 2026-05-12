@@ -14,7 +14,6 @@ import re
 import html
 import unicodedata
 import numpy as np
-import tensorflow as tf
 
 # NLTK lemmatizer — must match the training pipeline exactly
 import nltk
@@ -194,13 +193,13 @@ def explain_prediction(model, X, feature_names, top_n=5):
 
 def get_explanation(model_choice: str, text: str, models: dict):
     """
-    Get TF-IDF feature explanation for SVM or Logistic Regression.
+    Get TF-IDF feature explanation for the production SVM model.
 
     [v2 update] Now automatically detects whether the pipeline uses a single
     TF-IDF vectorizer (v1) or a FeatureUnion (v2) and extracts feature names
     and the sparse matrix accordingly.
     """
-    if model_choice not in ["SVM", "Logistic Regression"]:
+    if model_choice != "SVM":
         return []
 
     m = models.get(model_choice)
@@ -335,11 +334,8 @@ def run_inference_detailed(text: str, model_choice: str, models: dict, nn_model)
 
 
 def _predict_vishing_probability(clean_text: str, model_choice: str, models: dict, nn_model) -> float:
-    """Return P(vishing) for the selected ML/NLP model."""
-    if model_choice == "Neural Network":
-        return float(nn_model.predict(tf.constant([clean_text]), verbose=0).reshape(-1)[0])
-
-    m = models[model_choice]
+    """Return P(vishing) for the production SVM model."""
+    m = models["SVM"]
     if hasattr(m, "predict_proba"):
         proba = m.predict_proba([clean_text])[0]
         classes = list(m.classes_)

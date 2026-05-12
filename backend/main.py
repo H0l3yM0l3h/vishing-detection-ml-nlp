@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
     app.state.vectorizer = vectorizer
     app.state.models     = ml_models
     app.state.nn_model   = nn_model
-    print(f"[ShieldGuard] Loaded {len(ml_models)} classical models + 1 neural network")
+    print("[ShieldGuard] Loaded production SVM model")
 
     print("[ShieldGuard] Initializing ChromaDB scam library...")
     count = ensure_scam_library()
@@ -174,7 +174,6 @@ async def health_check(request: Request):
     """Returns real-time status of all AI components."""
     state = request.app.state
     ml_models   = getattr(state, "models",    None)
-    nn_model    = getattr(state, "nn_model",  None)
     chroma      = getattr(state, "chroma_count", 0)
     groq_ok     = getattr(state, "groq_available", False)
 
@@ -183,8 +182,7 @@ async def health_check(request: Request):
     return {
         "status": "online" if ml_ok else "degraded",
         "components": {
-            "ml_classifier":  {"ok": ml_ok,    "detail": f"{len(ml_models)} models" if ml_ok else "not loaded"},
-            "neural_network": {"ok": bool(nn_model), "detail": "loaded" if nn_model else "not loaded"},
+            "ml_classifier":  {"ok": ml_ok,    "detail": "SVM v3 production model" if ml_ok else "not loaded"},
             "rag_chromadb":   {"ok": chroma > 0, "detail": f"{chroma} entries"},
             "llm_groq":       {"ok": groq_ok,   "detail": "reachable" if groq_ok else "not reachable"},
             "whisper_stt":    {"ok": groq_ok,    "detail": "Groq whisper-large-v3-turbo" if groq_ok else "requires Groq API"},
@@ -297,9 +295,7 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
 
         # Sanitize
         transcript = sanitize_input(req.transcript)
-        model_choice = req.model_choice
-        if model_choice not in ["SVM", "Logistic Regression", "Random Forest", "Neural Network"]:
-            model_choice = "SVM"
+        model_choice = "SVM"
 
         # Get models from app state
         models   = request.app.state.models

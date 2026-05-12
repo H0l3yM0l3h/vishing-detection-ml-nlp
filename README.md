@@ -30,9 +30,9 @@ npm run dev
 
 ## Features
 
-- **Advanced Machine Learning Engine**: Evaluates linguistic patterns, emotional tone, and urgency indicators to detect scams.
+- **Final Production SVM Engine**: Evaluates linguistic patterns, urgency indicators, and scam phrases using the selected SVM v3 classifier.
 - **RAG + LLM Context Search**: Cross-references local vector databases of known scam scripts (ChromaDB) and generates natural language explanations via Groq API (Llama 3.3 70B).
-- **Deep Neural Network Validation**: Second-stage verification routing high-risk transcripts through an optimized multi-layer perceptron.
+- **Model Selection Rationale**: LR, RF, and NN were evaluated during experimentation, but SVM v3 was selected for deployment because it gives the best balance of accuracy, speed, and explainability.
 - **Real-Time System Health**: Live health monitoring (`/api/health`) tracks connectivity and loaded ML models via a reactive polling hook.
 - **V2 "Dark Tech Startup" UI**: Completely overhauled dark-mode interface (`#09090b` base) built with custom Shadcn-compatible components.
 - **WebGL Interactive Elements**: Features high-performance WebGL shaders including an ethereal fluid background on the authentication page and interactive `LiquidMetalButton` components.
@@ -86,9 +86,11 @@ ai_review = await run_crew({
 })
 ```
 
-## ML Model - v3 Limited-Dataset Training (2026-04-29)
+## Final Production ML Model - SVM v3 (2026-04-29)
 
-The active production model is now retrained with a leakage-safe limited-dataset workflow:
+The deployed app keeps only `models/svm_model.pkl` as the active runtime model. LR, RF, and NN artifacts are retained in `models/legacy/` for report evidence and examiner discussion, but they are no longer loaded by the production backend.
+
+The final SVM classifier was selected because it offers the strongest practical balance for a user-facing vishing detector: high clean-test accuracy, millisecond-level inference, calibrated probabilities, and transparent TF-IDF feature explanations.
 
 | Change | Detail | Impact |
 |---|---|---|
