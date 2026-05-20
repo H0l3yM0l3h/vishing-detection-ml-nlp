@@ -1,0 +1,6 @@
+10003	IGNORE	Vulnerable JS Library
+10015	WARN	Incomplete or No Cache-control Header Set
+10021	WARN	X-Content-Type-Options Header Missing
+10038	WARN	Content Security Policy Header Not Set
+10098	IGNORE	Cross-Domain Misconfiguration
+10202	IGNORE	Absence of Anti-CSRF Tokens
