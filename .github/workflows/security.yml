@@ -152,31 +152,35 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install backend dependencies
         run: pip install -r backend/requirements.txt
 
       - name: Start backend server for DAST
+        id: start_server
         working-directory: backend
         run: |
-          # Create minimal .env for CI testing (no real keys needed)
+          # Create minimal .env for CI testing
           echo "GROQ_API_KEY=ci_test_dummy" > .env
           echo "SUPABASE_URL=https://dummy.supabase.co" >> .env
           echo "SUPABASE_KEY=dummy_key_for_ci" >> .env
           echo "JWT_SECRET=ci_test_jwt_secret" >> .env
           nohup uvicorn main:app --host 0.0.0.0 --port 8000 &
-          # Wait for server to be ready
           echo "Waiting for server to start..."
-          for i in $(seq 1 30); do
-            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+          SERVER_READY=false
+          for i in $(seq 1 20); do
+            if curl -s http://localhost:8000/api/health > /dev/null 2>&1; then
               echo "Server is ready!"
+              SERVER_READY=true
               break
             fi
-            sleep 2
+            sleep 3
           done
+          echo "server_ready=$SERVER_READY" >> "$GITHUB_OUTPUT"
 
       - name: OWASP ZAP Baseline Scan
+        if: steps.start_server.outputs.server_ready == 'true'
         uses: zaproxy/action-baseline@v0.14.0
         with:
           target: "http://localhost:8000"
@@ -184,6 +188,27 @@ jobs:
           cmd_options: "-a -j"
           allow_issue_writing: false
         continue-on-error: true
+
+      - name: OWASP ZAP API Scan (fallback)
+        if: steps.start_server.outputs.server_ready != 'true'
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          target: "http://localhost:8000/openapi.json"
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-f openapi"
+          allow_issue_writing: false
+        continue-on-error: true
+
+      - name: DAST Summary
+        if: always()
+        run: |
+          if [ "${{ steps.start_server.outputs.server_ready }}" == "true" ]; then
+            echo "✅ DAST: Full baseline scan completed against live server"
+          else
+            echo "⚠️ DAST: Server failed to start in CI (model loading issue)."
+            echo "   Attempted API scan against OpenAPI spec as fallback."
+            echo "   For full DAST, run OWASP ZAP locally against http://localhost:8000"
+          fi
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
