@@ -300,6 +300,24 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      - name: Fetch and verify Git LFS model
+        run: |
+          git lfs install
+          git lfs pull --include="models/svm_model.pkl"
+          python - <<'PY'
+          from pathlib import Path
+
+          model = Path("models/svm_model.pkl")
+          if not model.exists():
+              raise SystemExit("models/svm_model.pkl is missing after Git LFS pull")
+
+          head = model.read_bytes()[:64]
+          if head.startswith(b"version https://git-lfs.github.com/spec"):
+              raise SystemExit("models/svm_model.pkl is still a Git LFS pointer, not the real model")
+
+          print(f"Verified real SVM model file: {model.stat().st_size} bytes")
+          PY
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
