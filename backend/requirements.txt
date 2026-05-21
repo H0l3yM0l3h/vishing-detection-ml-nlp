@@ -25,3 +25,4 @@ sentence-transformers>=3.0.0
 
 # Audio
 pydub>=0.25.1
+idna>=3.15 # not directly required, pinned by Snyk to avoid a vulnerability
