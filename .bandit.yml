@@ -1,9 +1,9 @@
-# .bandit.yml — Bandit SAST configuration for ShieldGuard
-# Customizes which security checks to run on Python source code
+# .bandit.yml - Bandit SAST configuration for ShieldGuard
+# Customizes which security checks to run on Python source code.
 
 skips:
-  - B101  # assert_used — acceptable in test code
-  - B311  # random — not used for cryptographic purposes
+  - B101  # assert_used - acceptable in test code
+  - B311  # random - not used for cryptographic purposes
 
 exclude_dirs:
   - tests

@@ -156,15 +156,13 @@ const DotMatrix = ({
             fragColor.rgb *= fragColor.a;
         }`}
       uniforms={uniforms}
-      maxFps={60}
     />
   );
 };
 
-const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
+const ShaderMaterial = ({ source, uniforms }) => {
   const { size } = useThree();
   const ref = useRef(null);
-  let lastFrameTime = 0;
 
   const mouseRef = useRef(new THREE.Vector2(0, 0));
 
@@ -179,8 +177,6 @@ const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
   useFrame((state) => {
     if (!ref.current) return;
     const timestamp = state.clock.getElapsedTime();
-
-    lastFrameTime = timestamp;
 
     const material = ref.current.material;
     const timeLocation = material.uniforms.u_time;
@@ -199,7 +195,7 @@ const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
     }
   });
 
-  const getUniforms = () => {
+  const getUniforms = React.useCallback(() => {
     const preparedUniforms = {};
 
     for (const uniformName in uniforms) {
@@ -245,7 +241,7 @@ const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
       value: new THREE.Vector2(size.width * 2, size.height * 2),
     };
     return preparedUniforms;
-  };
+  }, [uniforms, size.width, size.height]);
 
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
@@ -269,7 +265,7 @@ const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
       blendSrc: THREE.SrcAlphaFactor,
       blendDst: THREE.OneFactor,
     });
-  }, [size.width, size.height, source]);
+  }, [source, getUniforms]);
 
   return (
     <mesh ref={ref}>
@@ -279,10 +275,10 @@ const ShaderMaterial = ({ source, uniforms, maxFps = 60 }) => {
   );
 };
 
-const Shader = ({ source, uniforms, maxFps = 60 }) => {
+const Shader = ({ source, uniforms }) => {
   return (
     <Canvas className="absolute inset-0 h-full w-full">
-      <ShaderMaterial source={source} uniforms={uniforms} maxFps={maxFps} />
+      <ShaderMaterial source={source} uniforms={uniforms} />
     </Canvas>
   );
 };

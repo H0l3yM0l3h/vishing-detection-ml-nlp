@@ -6,7 +6,7 @@ const RULES = [
   { label: 'One uppercase letter',       test: (p) => /[A-Z]/.test(p) },
   { label: 'One lowercase letter',       test: (p) => /[a-z]/.test(p) },
   { label: 'One number',                 test: (p) => /\d/.test(p) },
-  { label: 'One special character',      test: (p) => /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?/`~"'\\]/.test(p) },
+  { label: 'One special character',      test: (p) => /[^A-Za-z0-9]/.test(p) },
 ]
 
 const inputBase = {

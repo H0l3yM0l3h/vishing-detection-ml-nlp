@@ -2,18 +2,28 @@ from app.auth import validate_password, hash_password, verify_password
 
 
 def test_validate_password_accepts_strong_password():
-    assert validate_password("Abcd1234!@#$")
+    valid, _ = validate_password("Abcd1234!@#$")
+    assert valid
 
 
 def test_validate_password_rejects_short_password():
-    assert not validate_password("Abc1!def")
+    valid, reason = validate_password("Abc1!def")
+    assert not valid
+    assert "at least 12 characters" in reason
 
 
 def test_validate_password_requires_upper_lower_digit_symbol():
-    assert not validate_password("abcdefg12345!")  # missing upper
-    assert not validate_password("ABCDEFG12345!")  # missing lower
-    assert not validate_password("Abcdefghijkl!")  # missing digit
-    assert not validate_password("Abcdefghijkl1")  # missing symbol
+    cases = [
+        ("abcdefg12345!", "uppercase"),
+        ("ABCDEFG12345!", "lowercase"),
+        ("Abcdefghijkl!", "number"),
+        ("Abcdefghijkl1", "special"),
+    ]
+
+    for password, expected_reason in cases:
+        valid, reason = validate_password(password)
+        assert not valid
+        assert expected_reason in reason
 
 
 def test_hash_and_verify_password_roundtrip():

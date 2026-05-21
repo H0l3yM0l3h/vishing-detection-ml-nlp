@@ -59,7 +59,7 @@ def _get_collection():
 
 def _make_id(text: str) -> str:
     """Deterministic ID from transcript text."""
-    return hashlib.md5(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 # ─────────────────────────────────────────────────

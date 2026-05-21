@@ -1,4 +1,4 @@
-# ShieldGuard — AI-Powered Vishing Detection System
+# ShieldGuard - AI-Powered Vishing Detection System
 
 > Hybrid ML + LLM + RAG multi-agent system for detecting voice phishing (vishing) attacks.
 
@@ -127,3 +127,9 @@ The SVM classifier was retrained with the following upgrades over the original b
 ## Documentation
 
 See [LLMContext.md](LLMContext.md) for the complete system documentation.
+
+## CI Security Pipeline
+
+ShieldGuard includes a GitHub Actions pipeline for backend quality checks, frontend lint/build checks, Python SAST, dependency audits, secret scanning, and OWASP ZAP DAST.
+
+For the presentation-ready explanation, see [docs/github-actions-security-pipeline.md](docs/github-actions-security-pipeline.md).
