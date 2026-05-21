@@ -34,8 +34,8 @@ CYAN   = "\033[96m"
 BOLD   = "\033[1m"
 RESET  = "\033[0m"
 
-OK   = f"{GREEN}✓{RESET}"
-FAIL = f"{RED}✗{RESET}"
+OK   = f"{GREEN}PASS{RESET}"
+FAIL = f"{RED}FAIL{RESET}"
 WARN = f"{YELLOW}!{RESET}"
 
 SEP = f"{CYAN}{'─'*68}{RESET}"

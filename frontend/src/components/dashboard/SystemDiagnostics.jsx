@@ -70,7 +70,7 @@ export default function SystemDiagnostics() {
       const res = await api.get('/benchmark')
       setData(res.data)
     } catch (e) {
-      setError(e.response?.data?.detail || 'Benchmark failed — is the backend running?')
+      setError(e.response?.data?.detail || 'Benchmark failed - is the backend running?')
     } finally {
       setRunning(false)
     }
@@ -90,7 +90,7 @@ export default function SystemDiagnostics() {
 
   return (
     <div id="system-diagnostics" className="sg-card" style={{ marginTop: '24px', overflow: 'hidden' }}>
-      {/* Header row — always visible */}
+      {/* Header row - always visible */}
       <button
         onClick={toggle}
         style={{
@@ -104,7 +104,7 @@ export default function SystemDiagnostics() {
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '11px', letterSpacing: '2px', color: '#00aaff', textTransform: 'uppercase',
           }}>
-            ⚡ System Diagnostics
+            System Diagnostics
           </span>
           {data && (
             <Badge
@@ -115,7 +115,7 @@ export default function SystemDiagnostics() {
           )}
         </div>
         <span style={{ color: 'var(--text-3)', fontSize: '18px', lineHeight: 1 }}>
-          {open ? '▲' : '▼'}
+          {open ? 'Hide' : 'Show'}
         </span>
       </button>
 
@@ -155,7 +155,7 @@ export default function SystemDiagnostics() {
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '9px', color: 'var(--text-3)',
             }}>
-              10 labelled samples · SVM v3 · ML-only (no Groq required)
+              10 labelled samples | SVM v3 | ML-only (no Groq required)
             </span>
           </div>
 
@@ -255,7 +255,7 @@ export default function SystemDiagnostics() {
                         color: c.pass ? '#00e87a' : '#e8203c',
                         fontWeight: 700,
                       }}>
-                        {c.pass ? '✓ PASS' : '✗ FAIL'}
+                        {c.pass ? 'PASS' : 'FAIL'}
                       </span>
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
@@ -291,7 +291,7 @@ export default function SystemDiagnostics() {
                 textAlign: 'center',
               }}>
                 {data.ready
-                  ? '✓ System is performing within expected parameters — ready for user testing.'
+                  ? 'Ready: system is performing within expected parameters for user testing.'
                   : '! Some cases were inconclusive. Check Groq API connection for full hybrid analysis.'}
               </div>
             </>

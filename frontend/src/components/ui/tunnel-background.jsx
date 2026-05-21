@@ -1,31 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useRef, useEffect, useState, useCallback } from "react";
-
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth <= breakpoint : false
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    const onChange = (e) => setIsMobile(e.matches);
-
-    setIsMobile(mq.matches);
-
-    try {
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    } catch {
-      mq.addListener(onChange);
-      return () => mq.removeListener(onChange);
-    }
-  }, [breakpoint]);
-
-  return isMobile;
-}
+import { useRef, useEffect, useCallback } from "react";
 
 const vertexShader = `void main(){ gl_Position = vec4(position, 1.0); }`;
 
@@ -125,7 +101,7 @@ function disposeThree(ctx) {
     ctx.mesh.geometry.dispose();
     ctx.material.dispose();
     ctx.renderer.dispose();
-  } catch (e) {
+  } catch {
     // ignore disposal errors
   }
 }

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 
 function FloatingPaths({ position }) {
+    const MotionPath = motion.path;
     const paths = Array.from({ length: 36 }, (_, i) => ({
         id: i,
         d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${
@@ -25,7 +26,7 @@ function FloatingPaths({ position }) {
             >
                 <title>Background Paths</title>
                 {paths.map((path) => (
-                    <motion.path
+                    <MotionPath
                         key={path.id}
                         d={path.d}
                         stroke="currentColor"
@@ -50,6 +51,7 @@ function FloatingPaths({ position }) {
 }
 
 export function BackgroundPaths({ children }) {
+    const MotionDiv = motion.div;
     return (
         <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden" style={{ background: 'var(--bg)' }}>
             <div className="absolute inset-0 z-0">
@@ -59,14 +61,14 @@ export function BackgroundPaths({ children }) {
 
             {/* Content wrapped nicely on top of paths */}
             <div className="relative z-10 w-full px-4 md:px-6">
-                <motion.div
+                <MotionDiv
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1.5 }}
                     className="w-full flex justify-center"
                 >
                     {children}
-                </motion.div>
+                </MotionDiv>
             </div>
         </div>
     );
