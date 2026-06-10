@@ -40,14 +40,14 @@ export default function Header() {
       top: 0,
       zIndex: 50,
     }}>
-      <div style={{
+      <div className="sg-header-inner" style={{
         maxWidth: '960px', margin: '0 auto', padding: '0 24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         height: '58px',
       }}>
 
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="sg-header-brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: '32px', height: '32px', borderRadius: '8px',
             overflow: 'hidden', flexShrink: 0,
@@ -72,23 +72,25 @@ export default function Header() {
         </div>
 
         {/* Right */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="sg-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
           {/* System status — live */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FeaturedIcon
-              icon={StatusIcon}
-              theme="outline"
-              color={statusColor}
-              size="md"
-              style={isChecking ? { animation: 'spin 1.5s linear infinite' } : undefined}
-            />
-            <div>
+          <div className="sg-header-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="sg-header-status-icon">
+              <FeaturedIcon
+                icon={StatusIcon}
+                theme="outline"
+                color={statusColor}
+                size="md"
+                style={isChecking ? { animation: 'spin 1.5s linear infinite' } : undefined}
+              />
+            </span>
+            <div className="sg-header-status-copy">
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: labelColor, letterSpacing: '0.5px', lineHeight: 1, transition: 'color .4s' }}>
                 {statusLabel}
               </div>
               {statusSub && (
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.5px', lineHeight: 1, marginTop: '3px' }}>
+                <div className="sg-header-status-sub" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.5px', lineHeight: 1, marginTop: '3px' }}>
                   {statusSub}
                 </div>
               )}
@@ -96,7 +98,7 @@ export default function Header() {
           </div>
 
           {/* Divider */}
-          <div style={{ width: '1px', height: '28px', background: 'var(--border)' }} />
+          <div className="sg-header-divider" style={{ width: '1px', height: '28px', background: 'var(--border)' }} />
 
           <ThemeSwitch />
 
@@ -138,7 +140,7 @@ export default function Header() {
               }}>
                 {user.username.charAt(0).toUpperCase()}
               </div>
-              <span style={{
+              <span className="sg-header-username" style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontSize: '13px', fontWeight: 600, color: 'var(--text)',
               }}>
@@ -149,6 +151,7 @@ export default function Header() {
 
           {/* Sign out */}
           <button
+            className="sg-header-signout"
             onClick={logout}
             style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '12px', fontWeight: 500,

@@ -14,7 +14,7 @@ const VERDICT_BG = {
 
 function Badge({ label, color, bg }) {
   return (
-    <span style={{
+    <span className="diag-badge" style={{
       display: 'inline-block',
       padding: '2px 10px',
       borderRadius: '99px',
@@ -34,7 +34,7 @@ function Badge({ label, color, bg }) {
 
 function MetricBox({ value, label, color }) {
   return (
-    <div style={{
+    <div className="diag-metric-box" style={{
       flex: 1,
       background: 'var(--surface-2)',
       border: `1px solid ${color}30`,
@@ -42,12 +42,12 @@ function MetricBox({ value, label, color }) {
       padding: '18px 14px',
       textAlign: 'center',
     }}>
-      <div style={{
+      <div className="diag-metric-value" style={{
         fontFamily: "'Plus Jakarta Sans', sans-serif",
         fontWeight: 800, fontSize: '26px', color,
         marginBottom: '4px',
       }}>{value}</div>
-      <div style={{
+      <div className="diag-metric-label" style={{
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: '9px', color: 'var(--text-3)',
         letterSpacing: '1.5px', textTransform: 'uppercase',
@@ -89,9 +89,10 @@ export default function SystemDiagnostics() {
     : 'var(--text-3)'
 
   return (
-    <div id="system-diagnostics" className="sg-card" style={{ marginTop: '24px', overflow: 'hidden' }}>
+    <div id="system-diagnostics" className="sg-card diag-card" style={{ marginTop: '24px', overflow: 'hidden' }}>
       {/* Header row - always visible */}
       <button
+        className="diag-header"
         onClick={toggle}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -99,7 +100,7 @@ export default function SystemDiagnostics() {
           color: 'inherit',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="diag-title-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: '11px', letterSpacing: '2px', color: '#00aaff', textTransform: 'uppercase',
@@ -114,17 +115,17 @@ export default function SystemDiagnostics() {
             />
           )}
         </div>
-        <span style={{ color: 'var(--text-3)', fontSize: '18px', lineHeight: 1 }}>
+        <span className="diag-toggle-label" style={{ color: 'var(--text-3)', fontSize: '18px', lineHeight: 1 }}>
           {open ? 'Hide' : 'Show'}
         </span>
       </button>
 
       {/* Collapsible body */}
       {open && (
-        <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
+        <div className="diag-body" style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
 
           {/* Run / Rerun button */}
-          <div style={{ paddingTop: '16px', marginBottom: '20px' }}>
+          <div className="diag-run-row" style={{ paddingTop: '16px', marginBottom: '20px' }}>
             <button
               id="run-benchmark-btn"
               onClick={runBenchmark}
@@ -150,7 +151,7 @@ export default function SystemDiagnostics() {
               )}
               {running ? 'Running...' : data ? 'Re-run Benchmark' : 'Run Benchmark'}
             </button>
-            <span style={{
+            <span className="diag-run-meta" style={{
               marginLeft: '12px',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '9px', color: 'var(--text-3)',
@@ -172,7 +173,7 @@ export default function SystemDiagnostics() {
           {data && (
             <>
               {/* Metric row */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <div className="diag-metric-grid" style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <MetricBox value={`${data.accuracy}%`}         label="ML Accuracy"    color={accColor} />
                 <MetricBox value={`${data.avg_latency_ms}ms`} label="Avg Latency"    color={latColor} />
                 <MetricBox value={`${data.max_latency_ms}ms`} label="Max Latency"    color={latColor} />
@@ -180,7 +181,7 @@ export default function SystemDiagnostics() {
               </div>
 
               {/* Threshold info */}
-              <div style={{
+              <div className="diag-threshold-row" style={{
                 display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap',
               }}>
                 {[
@@ -196,12 +197,12 @@ export default function SystemDiagnostics() {
               {/* Per-sample table */}
               <div style={{
                 background: 'var(--surface-2)', borderRadius: '10px',
-                border: '1px solid var(--border)', overflow: 'hidden',
+                border: '1px solid var(--border)', overflowX: 'auto', WebkitOverflowScrolling: 'touch',
               }}>
                 {/* Table header */}
-                <div style={{
+                <div className="diag-table-grid" style={{
                   display: 'grid',
-                  gridTemplateColumns: '32px 90px 90px 90px 72px 72px 1fr',
+                  gridTemplateColumns: '32px 90px 90px 90px 72px 72px minmax(150px, 1fr)',
                   padding: '8px 14px',
                   borderBottom: '1px solid var(--border)',
                   fontFamily: "'JetBrains Mono', monospace",
@@ -223,10 +224,11 @@ export default function SystemDiagnostics() {
                   const vb = VERDICT_BG[c.got]   || 'transparent'
                   return (
                     <div
+                      className="diag-table-grid"
                       key={c.index}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '32px 90px 90px 90px 72px 72px 1fr',
+                        gridTemplateColumns: '32px 90px 90px 90px 72px 72px minmax(150px, 1fr)',
                         padding: '9px 14px',
                         borderBottom: '1px solid var(--border)',
                         alignItems: 'center',

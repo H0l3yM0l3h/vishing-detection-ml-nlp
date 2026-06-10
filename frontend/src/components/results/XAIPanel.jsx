@@ -36,7 +36,7 @@ export default function XAIPanel({ keywords }) {
           const label = isVishing ? 'Vishing signal' : 'Safe signal'
 
           return (
-            <div key={`${row.feature}-${index}`} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 96px', gap: '12px', alignItems: 'center' }}>
+            <div key={`${row.feature}-${index}`} className="grid grid-cols-1 sm:grid-cols-[150px_1fr_96px]" style={{ gap: '12px', alignItems: 'center' }}>
               <div
                 title={row.feature}
                 style={{

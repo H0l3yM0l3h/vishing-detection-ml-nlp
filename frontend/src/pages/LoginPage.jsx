@@ -230,7 +230,7 @@ export default function LoginPage() {
 
                 {/* PW rules compact grid */}
                 {regPass.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', padding: '10px 12px', background: 'var(--login-rule)', border: '1px solid var(--login-border)', borderRadius: '8px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: '4px 10px', padding: '10px 12px', background: 'var(--login-rule)', border: '1px solid var(--login-border)', borderRadius: '8px' }}>
                     {PW_RULES.map((r) => (
                       <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: r.test(regPass) ? '#10B981' : '#3f3f46' }}>
                         <span style={{ width: '10px' }}>{r.test(regPass) ? '+' : '-'}</span>

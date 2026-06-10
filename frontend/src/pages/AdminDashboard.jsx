@@ -252,7 +252,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ── Row 2: Pie + Area ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr]" style={{ gap: 16, marginBottom: 16 }}>
 
                   {/* Verdict donut */}
                   <ChartCard title="Verdict Breakdown">
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ── Row 3: Bar + Top users ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+                <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr]" style={{ gap: 16 }}>
 
                   {/* Confidence histogram */}
                   <ChartCard title="Confidence Distribution">

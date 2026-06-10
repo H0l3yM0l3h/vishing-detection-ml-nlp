@@ -6,7 +6,7 @@ const STEPS = [
 
 export default function StepGuide() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
+    <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '12px', marginBottom: '28px' }}>
       {STEPS.map((s) => (
         <div key={s.num}
           className="sg-card"

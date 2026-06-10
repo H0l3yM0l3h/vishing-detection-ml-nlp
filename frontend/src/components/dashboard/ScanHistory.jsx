@@ -16,10 +16,10 @@ export default function ScanHistory() {
   if (history.length === 0) return null
 
   return (
-    <div className="sg-card !p-4 mt-8">
+    <div className="sg-card !p-4 mt-8 scan-history-card">
       <div className="sec-label mb-3">Recent Scan History</div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
+      <div className="scan-history-scroll overflow-x-auto">
+        <table className="scan-history-table w-full text-left">
           <thead>
             <tr className="font-mono text-[9px] text-[var(--muted)] tracking-[2px] uppercase">
               <th className="py-2 pr-4">Verdict</th>
@@ -35,15 +35,15 @@ export default function ScanHistory() {
               const color = isV ? 'var(--red)' : 'var(--green)'
               return (
                 <tr key={i} className="border-t border-[var(--border)]">
-                  <td className="py-2 pr-4 font-mono text-[11px] font-bold" style={{ color }}>
+                  <td data-label="Verdict" className="py-2 pr-4 font-mono text-[11px] font-bold" style={{ color }}>
                     {row.verdict}
                   </td>
-                  <td className="py-2 pr-4 font-mono text-[11px] text-[var(--text)]">
+                  <td data-label="Confidence" className="py-2 pr-4 font-mono text-[11px] text-[var(--text)]">
                     {(row.confidence * 100).toFixed(1)}%
                   </td>
-                  <td className="py-2 pr-4 font-mono text-[10px] text-[var(--muted)]">{row.model_used}</td>
-                  <td className="py-2 pr-4 font-mono text-[10px] text-[var(--muted)]">{row.input_mode}</td>
-                  <td className="py-2 font-mono text-[10px] text-[var(--muted)]">
+                  <td data-label="Model" className="py-2 pr-4 font-mono text-[10px] text-[var(--muted)]">{row.model_used}</td>
+                  <td data-label="Mode" className="py-2 pr-4 font-mono text-[10px] text-[var(--muted)]">{row.input_mode}</td>
+                  <td data-label="Time" className="py-2 font-mono text-[10px] text-[var(--muted)]">
                     {new Date(row.analyzed_at).toLocaleString()}
                   </td>
                 </tr>

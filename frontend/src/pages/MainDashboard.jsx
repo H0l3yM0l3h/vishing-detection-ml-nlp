@@ -76,23 +76,25 @@ export default function MainDashboard() {
         <Header />
 
         <main style={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ maxWidth: '900px', width: '100%', padding: '0 24px 60px' }} className="animate-fade-up">
+          <div style={{ maxWidth: '900px', width: '100%', padding: '0 24px 60px' }} className="sg-dashboard-shell animate-fade-up">
 
             <HeroSection />
 
             {/* Stats strip */}
-            <div style={{
+            <div className="sg-stats-strip" style={{
               display: 'flex',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
               background: 'var(--surface)',
               backdropFilter: 'blur(16px)',
               border: '1px solid var(--border)',
               borderRadius: '14px',
               marginBottom: '28px',
-              overflow: 'hidden',
+              overflowY: 'hidden',
             }}>
               {STATS.map((s, i) => (
-                <div key={s.label} style={{
-                  flex: 1, padding: '16px 12px', textAlign: 'center',
+                <div key={s.label} className="sg-stat-item" style={{
+                  flex: '1 0 130px', padding: '16px 12px', textAlign: 'center',
                   borderRight: i < STATS.length - 1 ? '1px solid var(--border)' : 'none',
                 }}>
                   {/* Value is WHITE, not purple */}
@@ -152,7 +154,7 @@ export default function MainDashboard() {
                 {result.insufficient_evidence && <WarnBox>{result.insufficient_reason}</WarnBox>}
                 {result.divergence_flag       && <DivergenceWarning />}
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
                   <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />
                   <RiskGauge
                     confidence={result.confidence}
