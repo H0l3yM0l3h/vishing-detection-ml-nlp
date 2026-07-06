@@ -3,6 +3,7 @@ import { useAuthStore } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import MainDashboard from './pages/MainDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import ThreatIntelPage from './pages/ThreatIntelPage'
 
 function ProtectedRoute({ children }) {
   const token = useAuthStore((s) => s.token)
@@ -28,6 +29,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/threat-intel"
+          element={
+            <ProtectedRoute>
+              <ThreatIntelPage />
             </ProtectedRoute>
           }
         />

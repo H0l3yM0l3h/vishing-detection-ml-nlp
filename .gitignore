@@ -49,6 +49,31 @@ frontend/package-lock.json
 Report/
 explanation.md
 reportstructure.md
+deploy.md
+testing.md
+guideGraphify.md
+study.md
+poster.md
+
+# Generated code graph
+graphify-out/
 
 # Legacy
 app/supabase_schema.sql
+
+# Project specific
+Research_Papers/
+*.log
+temp_pngs/
+.pytest_cache/
+.zap/
+
+# Generated plot files
+plot_metrics.py
+metrics_bar_chart.png
+
+# Generated evidence scripts and screenshots
+gen_evidence*.py
+Figure_*.png
+Analyze_API_Response.png
+test.wav

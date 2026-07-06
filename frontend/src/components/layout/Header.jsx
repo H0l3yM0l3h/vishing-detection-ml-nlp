@@ -126,6 +126,30 @@ export default function Header() {
             Analytics
           </button>
 
+          {/* Threat Intel link */}
+          <button
+            id="nav-threat-intel-btn"
+            onClick={() => navigate('/threat-intel')}
+            style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: '9px',
+              letterSpacing: '1.5px', textTransform: 'uppercase',
+              color: '#F59E0B', background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.2)',
+              borderRadius: '7px', padding: '5px 11px',
+              cursor: 'pointer', transition: 'all .2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(245,158,11,0.18)'
+              e.currentTarget.style.borderColor = 'rgba(245,158,11,0.45)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(245,158,11,0.08)'
+              e.currentTarget.style.borderColor = 'rgba(245,158,11,0.2)'
+            }}
+          >
+            Threat Intel
+          </button>
+
           {/* User avatar chip */}
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -25,3 +25,6 @@ sentence-transformers>=3.0.0
 
 # Audio
 pydub>=0.25.1
+
+# Phase 7: Threat Intelligence (PenipuMY API)
+httpx>=0.27.0

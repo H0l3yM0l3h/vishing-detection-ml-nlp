@@ -433,11 +433,21 @@ async def transcribe(file: UploadFile = File(...), user: dict = Depends(get_curr
                     file=(file.filename or f"audio{suffix}", audio_file.read()),
                     model="whisper-large-v3-turbo",
                     language="en",
+                    response_format="verbose_json",
                 )
-            return transcription.text.strip()
+            return transcription
 
-        transcript_text = await asyncio.to_thread(_sync_transcribe)
-        return {"transcript": transcript_text}
+        transcription_obj = await asyncio.to_thread(_sync_transcribe)
+        
+        # verbose_json returns text and duration
+        transcript_text = transcription_obj.text.strip()
+        duration = getattr(transcription_obj, "duration", 0.0)
+        
+        return {
+            "transcript": transcript_text,
+            "duration_seconds": duration,
+            "model_used": "whisper-large-v3-turbo"
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -698,8 +708,69 @@ async def samples():
 
 
 # ═══════════════════════════════════════════════
+# THREAT INTELLIGENCE — PenipuMY API (External)
+# ═══════════════════════════════════════════════
+import penipu_client
+
+
+@app.get("/api/threat-intel/phone")
+async def threat_intel_phone(q: str, user: dict = Depends(get_current_user)):
+    """Look up a phone number against PenipuMY scam database."""
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Phone number must be at least 3 characters")
+    if not penipu_client.is_configured():
+        raise HTTPException(status_code=503, detail="PenipuMY API key not configured")
+    try:
+        result = await penipu_client.lookup_phone(q.strip())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"PenipuMY lookup failed: {str(e)}")
+
+
+@app.get("/api/threat-intel/bank")
+async def threat_intel_bank(q: str, user: dict = Depends(get_current_user)):
+    """Look up a bank account against PenipuMY scam database."""
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Bank account must be at least 3 characters")
+    if not penipu_client.is_configured():
+        raise HTTPException(status_code=503, detail="PenipuMY API key not configured")
+    try:
+        result = await penipu_client.lookup_bank(q.strip())
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"PenipuMY lookup failed: {str(e)}")
+
+
+@app.get("/api/threat-intel/search")
+async def threat_intel_search(q: str, type: str = "auto", user: dict = Depends(get_current_user)):
+    """Search PenipuMY scam database by phone, bank, social, or name."""
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Search query must be at least 3 characters")
+    if not penipu_client.is_configured():
+        raise HTTPException(status_code=503, detail="PenipuMY API key not configured")
+    try:
+        result = await penipu_client.search(q.strip(), search_type=type)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"PenipuMY search failed: {str(e)}")
+
+
+@app.get("/api/threat-intel/stats")
+async def threat_intel_stats(user: dict = Depends(get_current_user)):
+    """Get platform-wide scam statistics from PenipuMY."""
+    if not penipu_client.is_configured():
+        raise HTTPException(status_code=503, detail="PenipuMY API key not configured")
+    try:
+        result = await penipu_client.get_stats()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"PenipuMY stats failed: {str(e)}")
+
+
+# ═══════════════════════════════════════════════
 # RUN
 # ═══════════════════════════════════════════════
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=os.environ.get("HOST", "127.0.0.1"), port=8000, reload=False)
+
