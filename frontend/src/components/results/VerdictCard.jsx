@@ -10,7 +10,7 @@ export default function VerdictCard({ verdict, confidence, source }) {
   const cls    = isVishing ? 'verdict-vishing' : isSafe ? 'verdict-safe' : 'verdict-warn'
 
   return (
-    <div className={`sg-card ${cls}`} style={{ background: bg, borderColor: brd }}>
+    <div className={`sg-card sg-verdict-card ${cls}`} style={{ background: bg, borderColor: brd }}>
       {/* Label — GRAY mono, not purple */}
       <div style={{
         fontFamily: "'JetBrains Mono', monospace",

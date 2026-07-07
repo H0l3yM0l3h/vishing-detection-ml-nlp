@@ -24,7 +24,7 @@ const C = {
 // ── KPI card (same component as AdminDashboard) ────────────────
 function KPICard({ label, value, sub, accent = C.indigo }) {
   return (
-    <div style={{
+    <div className="sg-kpi-card" style={{
       background: C.surface,
       backdropFilter: 'blur(16px)',
       border: `1px solid ${accent}25`,
@@ -93,7 +93,7 @@ function PhoneResultCard({ data }) {
   const statusLabel = isFraud ? 'FRAUD FLAGGED' : isSpam ? 'SPAM REPORTED' : isSafe ? 'NO REPORTS' : 'REPORTS FOUND'
 
   return (
-    <div className="sg-card animate-fade-up" style={{ borderColor: `${statusColor}35` }}>
+    <div className="sg-card sg-intel-result-card animate-fade-up" style={{ borderColor: `${statusColor}35` }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -224,7 +224,7 @@ function BankResultCard({ data }) {
   const statusLabel = isFraud ? 'FRAUD FLAGGED' : isSafe ? 'NO REPORTS' : 'REPORTS FOUND'
 
   return (
-    <div className="sg-card animate-fade-up" style={{ borderColor: `${statusColor}35` }}>
+    <div className="sg-card sg-intel-result-card animate-fade-up" style={{ borderColor: `${statusColor}35` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{
@@ -278,7 +278,7 @@ function BankResultCard({ data }) {
 function SearchResultsCard({ data }) {
   if (!data || !data.results || data.results.length === 0) {
     return (
-      <div className="sg-card animate-fade-up">
+      <div className="sg-card sg-intel-result-card animate-fade-up">
         <SecLabel>Search Results</SecLabel>
         <div style={{
           textAlign: 'center', padding: '40px 0',
@@ -291,7 +291,7 @@ function SearchResultsCard({ data }) {
   }
 
   return (
-    <div className="sg-card animate-fade-up">
+    <div className="sg-card sg-intel-result-card animate-fade-up">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 8 }}>
         <SecLabel>Search Results</SecLabel>
         <span style={{
@@ -458,10 +458,10 @@ export default function ThreatIntelPage() {
         <Header />
 
         <main style={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ maxWidth: 1100, width: '100%', padding: '0 24px 60px' }} className="animate-fade-up">
+          <div style={{ maxWidth: 1100, width: '100%', padding: '0 24px 60px' }} className="sg-threat-shell animate-fade-up">
 
             {/* ── Title bar — identical pattern to AdminDashboard ── */}
-            <div style={{
+            <div className="sg-threat-titlebar" style={{
               display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
               margin: '32px 0 28px', flexWrap: 'wrap', gap: 16,
             }}>
@@ -487,7 +487,7 @@ export default function ThreatIntelPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="sg-threat-actions" style={{ display: 'flex', gap: 10 }}>
                 <button
                   id="back-to-scanner-btn"
                   onClick={() => navigate('/app')}
@@ -507,7 +507,7 @@ export default function ThreatIntelPage() {
 
             {/* ── Platform Stats KPI row ── */}
             {stats && (
-              <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div className="sg-kpi-row" style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                 <KPICard
                   label="Scam Profiles"
                   value={(stats.total_profiles || 0).toLocaleString()}
@@ -535,7 +535,7 @@ export default function ThreatIntelPage() {
               </div>
             )}
             {statsLoading && !stats && (
-              <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+              <div className="sg-kpi-row" style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                 {[1,2,3,4].map(i => (
                   <div key={i} style={{
                     flex: 1, minWidth: 160, height: 100,
@@ -549,11 +549,11 @@ export default function ThreatIntelPage() {
             {statsError && <ErrorBox>{statsError}</ErrorBox>}
 
             {/* ── Search Card ── */}
-            <div className="sg-card" style={{ padding: '28px 28px 24px', marginBottom: 20 }}>
+            <div className="sg-card sg-threat-search-card" style={{ padding: '28px 28px 24px', marginBottom: 20 }}>
               <SecLabel>Query Scam Database</SecLabel>
 
               {/* Mode tabs — same tab pattern as InputTabs */}
-              <div style={{
+              <div className="sg-threat-mode-tabs" style={{
                 display: 'flex', gap: 4, marginBottom: 20,
                 background: 'var(--surface-2)', borderRadius: 10, padding: 4,
                 border: '1px solid var(--border)',
@@ -584,7 +584,7 @@ export default function ThreatIntelPage() {
               </div>
 
               {/* Search input */}
-              <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 12 }}>
+              <form className="sg-threat-search-form" onSubmit={handleSubmit} style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1, position: 'relative' }}>
                   <input
                     type="text"
@@ -677,7 +677,7 @@ export default function ThreatIntelPage() {
             )}
 
             {/* ── Data source badge (same pattern as Admin system status bar) ── */}
-            <div className="sg-card" style={{
+            <div className="sg-card sg-status-strip" style={{
               marginTop: 20, padding: '14px 22px',
               display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center',
             }}>

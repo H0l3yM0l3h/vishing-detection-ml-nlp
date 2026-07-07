@@ -29,8 +29,8 @@ export default function ConfidenceBar({ confidence, verdict }) {
   }, [pct])
 
   return (
-    <div className="sg-card !p-4">
-      <div className="flex justify-between mb-2">
+    <div className="sg-card !p-4 sg-confidence-card">
+      <div className="flex justify-between mb-2 sg-confidence-header">
         <span className="sec-label !mb-0">Confidence Score</span>
         <span className="font-display text-lg font-bold" style={{ color }}>{pct}%</span>
       </div>

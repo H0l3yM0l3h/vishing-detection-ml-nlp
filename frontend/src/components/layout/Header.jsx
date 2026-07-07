@@ -152,8 +152,8 @@ export default function Header() {
 
           {/* User avatar chip */}
           {user && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
+            <div className="sg-header-user" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="sg-header-avatar" style={{
                 width: '30px', height: '30px', borderRadius: '50%',
                 background: 'linear-gradient(135deg, #6366f1, #818cf8)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

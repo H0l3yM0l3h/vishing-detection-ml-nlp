@@ -38,10 +38,10 @@ export default function HeroSection() {
   }, [phraseIdx])
 
   return (
-    <div style={{ textAlign: 'center', padding: '56px 0 36px' }}>
+    <div className="sg-hero" style={{ textAlign: 'center', padding: '56px 0 36px' }}>
 
       {/* Subtle pill badge */}
-      <div style={{
+      <div className="sg-hero-pill" style={{
         display: 'inline-flex', alignItems: 'center', gap: '7px',
         background: 'var(--hero-pill-bg)',
         border: '1px solid var(--hero-pill-border)',
@@ -70,7 +70,7 @@ export default function HeroSection() {
       </h1>
 
       {/* Typewriter — gray/silver, NOT purple */}
-      <div style={{ height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '16px 0' }}>
+      <div className="sg-hero-typewriter" style={{ height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '16px 0' }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '13px', color: 'var(--hero-text-2)' }}>
           // {displayed}
           {typing && (

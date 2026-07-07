@@ -43,7 +43,7 @@ export default function RiskGauge({ confidence, verdict = '', vishingProbability
   const needleAngle   = -180 + animatedAngle
 
   return (
-    <div className="sg-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 24px' }}>
+    <div className="sg-card sg-risk-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 24px' }}>
       {/* Section label — gray */}
       <div style={{
         fontFamily: "'JetBrains Mono', monospace",

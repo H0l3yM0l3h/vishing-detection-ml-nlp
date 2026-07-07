@@ -50,6 +50,7 @@ export default function AudioUploader({ onTranscriptReady }) {
         />
         {/* Custom styled trigger */}
         <div
+          className="sg-file-trigger"
           onClick={() => !loading && inputRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); e.dataTransfer.files[0] && handleFile(e.dataTransfer.files[0]) }}
@@ -63,7 +64,7 @@ export default function AudioUploader({ onTranscriptReady }) {
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
         >
           {/* File button area */}
-          <div style={{
+          <div className="sg-file-trigger-button" style={{
             padding: '10px 14px', background: 'var(--surface-2)', borderRight: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0,
           }}>
@@ -73,7 +74,7 @@ export default function AudioUploader({ onTranscriptReady }) {
             </span>
           </div>
           {/* File name area */}
-          <span style={{
+          <span className="sg-file-name" style={{
             fontFamily: "'JetBrains Mono', monospace", fontSize: '12px',
             color: file ? 'var(--text)' : 'var(--text-3)', paddingRight: '12px',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -81,7 +82,7 @@ export default function AudioUploader({ onTranscriptReady }) {
             {file ? file.name : 'No file selected'}
           </span>
           {file && (
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'var(--text-3)', marginLeft: 'auto', paddingRight: '12px', flexShrink: 0 }}>
+            <span className="sg-file-size" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: 'var(--text-3)', marginLeft: 'auto', paddingRight: '12px', flexShrink: 0 }}>
               {(file.size / 1024 / 1024).toFixed(1)} MB
             </span>
           )}

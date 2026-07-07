@@ -99,8 +99,9 @@ export default function TranscriptInput({ onTranscriptReady }) {
 
       {/* Sample buttons */}
       {samples && (
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="sg-sample-buttons" style={{ display: 'flex', gap: '10px' }}>
           <button
+            className="sg-sample-button"
             type="button"
             onClick={() => setText(samples.vishing)}
             style={{
@@ -116,6 +117,7 @@ export default function TranscriptInput({ onTranscriptReady }) {
             Sample Vishing
           </button>
           <button
+            className="sg-sample-button"
             type="button"
             onClick={() => setText(samples.safe)}
             style={{

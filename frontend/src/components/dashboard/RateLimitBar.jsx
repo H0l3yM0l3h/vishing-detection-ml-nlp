@@ -4,7 +4,7 @@ export default function RateLimitBar({ used, max = 30, loading = false }) {
   const label = loading ? '...' : `${used}/${max}`
 
   return (
-    <div className="sg-card !p-3 flex items-center gap-4 mb-6">
+    <div className="sg-card !p-3 flex items-center gap-4 mb-6 sg-rate-limit">
       <span className="font-mono text-[9px] text-[var(--muted)] tracking-[2px] whitespace-nowrap uppercase">
         Scan Usage
       </span>

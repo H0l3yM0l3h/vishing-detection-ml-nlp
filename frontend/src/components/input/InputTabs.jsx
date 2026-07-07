@@ -15,11 +15,12 @@ export default function InputTabs({ onTranscriptReady }) {
   return (
     <div style={{ marginBottom: '24px' }}>
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+      <div className="sg-input-tabs-list" style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
         {TABS.map((tab) => {
           const isActive = active === tab.id
           return (
             <button
+              className="sg-input-tab-btn"
               key={tab.id}
               onClick={() => setActive(tab.id)}
               style={{
@@ -53,7 +54,7 @@ export default function InputTabs({ onTranscriptReady }) {
       </div>
 
       {/* Panel */}
-      <div className="sg-card sg-card-glow">
+      <div className="sg-card sg-card-glow sg-input-panel">
         {active === 'record' && <AudioRecorder  onTranscriptReady={onTranscriptReady} />}
         {active === 'upload' && <AudioUploader  onTranscriptReady={onTranscriptReady} />}
         {active === 'text'   && <TranscriptInput onTranscriptReady={onTranscriptReady} />}

@@ -145,7 +145,7 @@ export default function LoginPage() {
           style={{ width: '100%', maxWidth: '400px', border: '1px solid var(--login-border)', background: 'var(--login-card)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
         >
           {/* Header */}
-          <CardHeader style={{ padding: '24px 24px 4px' }}>
+          <CardHeader className="sg-login-card-header" style={{ padding: '24px 24px 4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div style={{ width: '30px', height: '30px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                 <img src="/logo.png" alt="ShieldGuard logo" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -159,7 +159,7 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent style={{ padding: '4px 24px 24px' }}>
+          <CardContent className="sg-login-card-content" style={{ padding: '4px 24px 24px' }}>
             {/* Tab switcher */}
             <div style={{ display: 'flex', gap: '4px', background: 'var(--login-tab)', border: '1px solid var(--login-border)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
               <button className={`tab-btn ${tab === 'login' ? 'active' : 'inactive'}`} onClick={() => setTab('login')}>
@@ -280,7 +280,7 @@ export default function LoginPage() {
             )}
           </CardContent>
 
-          <CardFooter style={{ padding: '0 24px 24px', justifyContent: 'center' }}>
+          <CardFooter className="sg-login-card-footer" style={{ padding: '0 24px 24px', justifyContent: 'center' }}>
             <span style={{ fontSize: '11px', color: 'var(--login-muted-soft)', fontFamily: "'JetBrains Mono', monospace" }}>
               ShieldGuard v3.1 — Hybrid Intelligence System
             </span>

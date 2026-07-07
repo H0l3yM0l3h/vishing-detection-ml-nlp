@@ -89,4 +89,5 @@ notebooks/Final_ML_TrainingPipeline.ipynb
 tests/get_demo_*.py
 tests/test_login_direct.py
 tests/test_penipumy_connection.py
+tests/ping_live_server.py
 tests/test_supabase_ping.py

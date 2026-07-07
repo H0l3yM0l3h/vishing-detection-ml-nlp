@@ -32,7 +32,7 @@ const PIE_COLORS = { Vishing: C.red, Safe: C.green, Inconclusive: C.amber }
 // ── KPI card ──────────────────────────────────────────────────
 function KPICard({ label, value, sub, accent = C.indigo }) {
   return (
-    <div style={{
+    <div className="sg-kpi-card" style={{
       background: C.surface,
       backdropFilter: 'blur(16px)',
       border: `1px solid ${accent}25`,
@@ -63,7 +63,7 @@ function KPICard({ label, value, sub, accent = C.indigo }) {
 // ── Chart card container ──────────────────────────────────────
 function ChartCard({ title, children, style }) {
   return (
-    <div className="sg-card" style={{ padding: '20px 22px', ...style }}>
+    <div className="sg-card sg-chart-card" style={{ padding: '20px 22px', ...style }}>
       <div className="sec-label" style={{ marginBottom: 18 }}>{title}</div>
       {children}
     </div>
@@ -126,10 +126,10 @@ export default function AdminDashboard() {
         <Header />
 
         <main style={{ flex: 1, width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ maxWidth: 1100, width: '100%', padding: '0 24px 60px' }} className="animate-fade-up">
+          <div style={{ maxWidth: 1100, width: '100%', padding: '0 24px 60px' }} className="sg-admin-shell animate-fade-up">
 
             {/* ── Title bar ── */}
-            <div style={{
+            <div className="sg-admin-titlebar" style={{
               display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
               margin: '32px 0 28px', flexWrap: 'wrap', gap: 16,
             }}>
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="sg-admin-actions" style={{ display: 'flex', gap: 10 }}>
                 <button
                   id="refresh-analytics-btn"
                   onClick={loadData}
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
             {data && (
               <>
                 {/* ── KPI row ── */}
-                <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div className="sg-kpi-row" style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                   <KPICard
                     label="Total Analyses"
                     value={data.total_scans.toLocaleString()}
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ── Row 2: Pie + Area ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr]" style={{ gap: 16, marginBottom: 16 }}>
+                <div className="sg-chart-grid grid grid-cols-1 lg:grid-cols-[1fr_2fr]" style={{ gap: 16, marginBottom: 16 }}>
 
                   {/* Verdict donut */}
                   <ChartCard title="Verdict Breakdown">
@@ -323,7 +323,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ── Row 3: Bar + Top users ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr]" style={{ gap: 16 }}>
+                <div className="sg-chart-grid grid grid-cols-1 lg:grid-cols-[2fr_1fr]" style={{ gap: 16 }}>
 
                   {/* Confidence histogram */}
                   <ChartCard title="Confidence Distribution">
@@ -342,7 +342,7 @@ export default function AdminDashboard() {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                    <div style={{
+                    <div className="sg-chart-legend" style={{
                       display: 'flex', gap: 20, marginTop: 12, justifyContent: 'center',
                       fontFamily: "'JetBrains Mono',monospace", fontSize: 9,
                     }}>
@@ -406,7 +406,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* ── System status bar ── */}
-                <div className="sg-card" style={{
+                <div className="sg-card sg-status-strip" style={{
                   marginTop: 20, padding: '14px 22px',
                   display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'center',
                 }}>
