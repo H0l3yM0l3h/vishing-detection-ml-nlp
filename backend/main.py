@@ -755,6 +755,14 @@ async def threat_intel_search(q: str, type: str = "auto", user: dict = Depends(g
         raise HTTPException(status_code=502, detail=f"PenipuMY search failed: {str(e)}")
 
 
+@app.get("/api/threat-intel/key")
+async def threat_intel_key(user: dict = Depends(get_current_user)):
+    """Return the PenipuMY API key for client-side direct request fallback."""
+    if not penipu_client.is_configured():
+        raise HTTPException(status_code=503, detail="Key not configured on server")
+    return {"key": penipu_client.PENIPU_API_KEY}
+
+
 @app.get("/api/threat-intel/stats")
 async def threat_intel_stats(user: dict = Depends(get_current_user)):
     """Get platform-wide scam statistics from PenipuMY."""
