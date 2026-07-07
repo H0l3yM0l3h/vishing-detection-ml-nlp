@@ -38,6 +38,10 @@ data/scam_library/
 
 # Backend
 backend/.env
+*.env
+*.env.*
+!.env.example
+!*.env.example
 backend/package-lock.json
 
 # Frontend
@@ -77,3 +81,12 @@ gen_evidence*.py
 Figure_*.png
 Analyze_API_Response.png
 test.wav
+
+# Local demo/debug artifacts
+docs/github-actions-security-pipeline.md
+models/svm_model_v2.pkl
+notebooks/Final_ML_TrainingPipeline.ipynb
+tests/get_demo_*.py
+tests/test_login_direct.py
+tests/test_penipumy_connection.py
+tests/test_supabase_ping.py
