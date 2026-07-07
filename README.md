@@ -1,3 +1,13 @@
+---
+title: Vishing Detection usingML-NLP
+emoji: 🛡️
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_file: backend/main.py
+pinned: false
+---
+
 # ShieldGuard - AI-Powered Vishing Detection System
 
 > Hybrid ML + LLM + RAG multi-agent system for detecting voice phishing (vishing) attacks.
