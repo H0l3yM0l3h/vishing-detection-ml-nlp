@@ -39,9 +39,27 @@ def sanitize_input(text: str, max_length: int = 10000) -> str:
     """
     Strip HTML tags and limit length.
     Prevents stored XSS if transcript is ever rendered as HTML.
+
+    Ordering matters. The previous implementation stripped tags first and
+    called html.unescape() afterwards, which *reintroduced* markup: the input
+    "&lt;img src=x onerror=alert(1)&gt;" contains no tags to strip, so it
+    passed through untouched and was then decoded into a live <img> element.
+
+    Decoding first — and repeating until the result stops changing — closes
+    that hole and also handles double-encoded payloads such as
+    "&amp;lt;script&amp;gt;". The loop is bounded because each pass either
+    shrinks the string or terminates.
     """
-    clean = re.sub(r"<[^>]+>", "", text)
-    clean = html.unescape(clean)
+    if not isinstance(text, str):
+        return ""
+
+    clean = text
+    for _ in range(4):
+        candidate = re.sub(r"<[^>]*>", "", html.unescape(clean))
+        if candidate == clean:
+            break
+        clean = candidate
+
     return clean[:max_length]
 
 

@@ -113,24 +113,12 @@ async def run_hybrid_analysis(
     # ── STEP 4: Run CrewAI agents ────────────────
     crew_result = await run_crew(case_file, model=llm_model)
 
-    # ── STEP 5: Cross-check divergence ───────────
-    divergence_flag = False
-    llm_verdict_lower = crew_result.get("verdict", "").lower()
-
-    ml_says_vishing = ml_label == "vishing"
-    llm_says_safe = any(w in llm_verdict_lower for w in ["safe", "legitimate", "benign"])
-    llm_says_vishing = any(w in llm_verdict_lower for w in ["hang up", "vishing", "scam", "danger", "risk"])
-
-    if ml_says_vishing and llm_says_safe:
-        divergence_flag = True
-    elif not ml_says_vishing and llm_says_vishing:
-        divergence_flag = True
-
-    # ── STEP 6: Build final result ───────────────
-    final_verdict = crew_result.get("verdict", ml_label)
-    if divergence_flag:
-        final_verdict = "SUSPICIOUS — UNCONFIRMED"
-
+    # ── STEP 5: Reconcile ML and AI ──────────────
+    # NOTE: a divergence pre-computation used to sit here, deriving
+    # `divergence_flag` and `final_verdict` from a simpler keyword comparison.
+    # Both values were then immediately overwritten by _ml_first_verdict()
+    # below, so the block had no effect on any response. It has been removed
+    # rather than left in place looking authoritative.
     final_verdict, divergence_flag, ai_status = _ml_first_verdict(
         ml_label=ml_label,
         vishing_probability=vishing_probability,
@@ -155,6 +143,13 @@ async def run_hybrid_analysis(
         "action_steps": crew_result.get("action_steps", []),
         "divergence_flag": divergence_flag,
     }
+
+
+# Canonical verdict strings. Previously the same logical verdict was spelled
+# two different ways (ASCII hyphen vs em dash) in the same request path.
+VERDICT_SUSPICIOUS = "SUSPICIOUS — UNCONFIRMED"
+VERDICT_CAUTION    = "EXERCISE CAUTION"
+VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
 
 
 def _ml_first_verdict(
@@ -186,23 +181,23 @@ def _ml_first_verdict(
 
     if vishing_probability >= STRONG_VISHING_PROB:
         if ai_says_safe or ai_questions_ml:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_ml_ai_disagreement"
+            return VERDICT_SUSPICIOUS, True, "review_ml_ai_disagreement"
         return "vishing", False, "ai_supported_ml"
 
     if vishing_probability <= STRONG_SAFE_PROB:
         if has_rule_flags or ai_says_high_risk:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_rule_or_ai_risk"
+            return VERDICT_SUSPICIOUS, True, "review_rule_or_ai_risk"
         return "safe", False, "ai_supported_ml"
 
     if ml_label == "vishing":
         if ai_says_safe or ai_questions_ml:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_ml_ai_disagreement"
+            return VERDICT_SUSPICIOUS, True, "review_ml_ai_disagreement"
         return "vishing", False, "ai_supported_ml"
 
     if ai_says_high_risk or has_rule_flags:
-        return "EXERCISE CAUTION", False, "ai_escalated_borderline_safe"
+        return VERDICT_CAUTION, False, "ai_escalated_borderline_safe"
 
     if ai_says_safe:
         return "safe", False, "ai_supported_ml"
 
-    return "INCONCLUSIVE", False, "needs_more_evidence"
+    return VERDICT_INCONCLUSIVE, False, "needs_more_evidence"

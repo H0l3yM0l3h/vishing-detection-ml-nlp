@@ -23,6 +23,9 @@ import re
 import asyncio
 
 from llm_config import check_groq_available, _get_groq_client, MODEL_PRESETS, DEFAULT_MODEL
+from agents.prompt_guard import (
+    detect_injection, fence, guard_preamble, injection_note, make_nonce,
+)
 
 
 # ── Groq generation ─────────────────────────────────────────────────────────
@@ -42,6 +45,10 @@ async def _groq_generate(prompt: str, model: str, timeout: float = 60.0) -> str:
         # blocking the asyncio event loop
         def _sync_call():
             response = client.chat.completions.create(
+                # This function accepted a `timeout` argument and never applied
+                # it, so callers passing 45.0 had no bound beyond the SDK
+                # default — a hung LLM call could stall an analysis request.
+                timeout=timeout,
                 model=model,
                 messages=[
                     {
@@ -77,12 +84,22 @@ def _build_forensic_prompt(case_file: dict) -> str:
             f"Preview: {sc['text_preview'][:150]}...\n"
         )
 
+    transcript = case_file["transcript"][:2000]
+    nonce = make_nonce()
+    findings = detect_injection(transcript)
+
     return (
-        f"Analyze this call transcript flagged by our ML vishing detection model.\n\n"
+        # The transcript is written by the caller — i.e. by the adversary — so
+        # it is fenced with an unguessable nonce and explicitly labelled as
+        # evidence rather than instruction. See agents/prompt_guard.py.
+        guard_preamble(nonce)
+        + f"\nAnalyze this call transcript flagged by our ML vishing detection model.\n\n"
         f"ML VERDICT: {case_file['ml_label'].upper()}\n"
         f"ML CONFIDENCE: {case_file['ml_score']:.1%}\n"
         f"FLAGGED KEYWORDS: {', '.join(case_file.get('flagged_keywords', []))}\n\n"
-        f"TRANSCRIPT:\n\"{case_file['transcript'][:2000]}\"\n\n"
+        f"TRANSCRIPT (untrusted evidence):\n{fence(transcript, nonce)}\n"
+        + injection_note(findings)
+        + "\n"
         f"SIMILAR CASES:{similar_text if similar_text else ' None.'}\n\n"
         f"1. Is the ML flag VALID or FALSE POSITIVE? (1-2 sentences)\n"
         f"2. Classify as: Bank Impersonation, OTP Fraud, Tech Support Scam, "
@@ -94,12 +111,19 @@ def _build_forensic_prompt(case_file: dict) -> str:
 
 def _build_guardian_prompt(case_file: dict, forensic_output: str) -> str:
     """Combined prompt for tactic detection + final verdict."""
+    transcript = case_file["transcript"][:1500]
+    nonce = make_nonce()
+    findings = detect_injection(transcript)
+
     return (
-        f"You are writing a safety advisory for a non-technical user.\n\n"
+        guard_preamble(nonce)
+        + f"\nYou are writing a safety advisory for a non-technical user.\n\n"
         f"ML MODEL: {case_file['ml_label'].upper()} ({case_file['ml_score']:.0%})\n"
         f"ML P(VISHING): {case_file.get('vishing_probability', case_file['ml_score']):.0%}\n"
         f"FORENSIC ANALYSIS:\n{forensic_output[:800]}\n\n"
-        f"TRANSCRIPT:\n\"{case_file['transcript'][:1500]}\"\n\n"
+        f"TRANSCRIPT (untrusted evidence):\n{fence(transcript, nonce)}\n"
+        + injection_note(findings)
+        + "\n"
         f"Identify present tactics: URGENCY, AUTHORITY, FEAR, ISOLATION, RECIPROCITY\n\n"
         f"Return ONLY valid JSON. Choose exactly one allowed value for each enum field:\n"
         f'{{"verdict":"HANG UP NOW",'
