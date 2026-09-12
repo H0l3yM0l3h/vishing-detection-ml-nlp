@@ -25,6 +25,7 @@ nothing was logged. The outage was indistinguishable from a code defect.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import threading
@@ -100,6 +101,34 @@ class _CircuitBreaker:
 _breaker = _CircuitBreaker(settings.DB_BREAKER_THRESHOLD, settings.DB_BREAKER_COOLDOWN_SECONDS)
 
 
+# Constraint violations and other request-level refusals mean "this particular
+# operation is invalid", not "the database is down". Counting them as
+# infrastructure failures lets an ordinary user action open a breaker shared by
+# every endpoint.
+_BUSINESS_ERROR_MARKERS = (
+    "duplicate key",
+    "already exists",
+    "unique constraint",
+    "violates unique",
+    "23505",           # PostgreSQL unique_violation
+    "23503",           # foreign_key_violation
+    "23514",           # check_violation
+)
+
+
+def _is_infrastructure_failure(exc: Exception) -> bool:
+    """True when an exception indicates the datastore itself is unhealthy.
+
+    Errors caused by the *content* of a request (a duplicate username, a
+    constraint violation) are the caller's problem and must not degrade
+    availability for everyone else.
+    """
+    text = f"{type(exc).__name__} {exc}".lower()
+    if any(marker in text for marker in _BUSINESS_ERROR_MARKERS):
+        return False
+    return True
+
+
 def resilient(operation: str):
     """Wrap a Supabase call: short-circuit, time, classify, log, re-raise as 503."""
 
@@ -115,7 +144,17 @@ def resilient(operation: str):
             try:
                 result = fn(*args, **kwargs)
             except Exception as exc:
-                _breaker.record_failure()
+                # Only infrastructure failures should count toward the breaker.
+                #
+                # Previously ANY exception tripped it, including expected
+                # business-logic errors. create_user raises on a UNIQUE
+                # violation when a username is taken, so three racing
+                # duplicate registrations could open a breaker that is shared
+                # by every database-backed endpoint — turning an ordinary
+                # "username already exists" into a 30-second outage of login,
+                # analysis and history for every user of the system.
+                if _is_infrastructure_failure(exc):
+                    _breaker.record_failure()
                 elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
                 log_event(
                     logging.ERROR,
@@ -442,3 +481,68 @@ def _count(resp) -> int:
     if resp.count is not None:
         return resp.count
     return len(resp.data) if resp.data else 0
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ASYNC WRAPPERS
+# ═══════════════════════════════════════════════════════════════════
+# supabase-py is synchronous: it performs blocking network I/O. Calling these
+# functions directly from an `async def` route handler blocks the single
+# uvicorn event loop for the duration of the call, which means one slow
+# Supabase request stalls EVERY concurrent request in the process — health
+# checks, other users' analyses, everything.
+#
+# /api/auth/login alone makes up to four sequential database calls, each with
+# an 8 second timeout, so a degraded database could freeze the whole worker
+# for half a minute.
+#
+# These wrappers push the blocking call onto a worker thread. The synchronous
+# functions above are unchanged and remain the single place the queries live,
+# so the circuit breaker, timeouts and logging all still apply.
+
+async def aget_user(username: str):
+    return await asyncio.to_thread(get_user, username)
+
+
+async def acreate_user(username: str, password_hash: bytes):
+    return await asyncio.to_thread(create_user, username, password_hash)
+
+
+async def arecord_login_attempt(username: str, success: bool):
+    return await asyncio.to_thread(record_login_attempt, username, success)
+
+
+async def ais_locked_out(username: str) -> tuple:
+    return await asyncio.to_thread(is_locked_out, username)
+
+
+async def acount_recent_failures(username: str) -> int:
+    return await asyncio.to_thread(count_recent_failures, username)
+
+
+async def alog_analysis(**kwargs):
+    return await asyncio.to_thread(functools.partial(log_analysis, **kwargs))
+
+
+async def aget_user_history(username: str, limit: int = 10) -> list:
+    return await asyncio.to_thread(get_user_history, username, limit)
+
+
+async def aget_recent_analytics(limit: int = 500) -> list:
+    return await asyncio.to_thread(get_recent_analytics, limit)
+
+
+async def acount_users() -> int:
+    return await asyncio.to_thread(count_users)
+
+
+async def acheck_rate_limit(username: str) -> tuple:
+    return await asyncio.to_thread(check_rate_limit, username)
+
+
+async def arecord_rate_event(username: str):
+    return await asyncio.to_thread(record_rate_event, username)
+
+
+async def ahealth_check() -> dict:
+    return await asyncio.to_thread(health_check)

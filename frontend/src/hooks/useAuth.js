@@ -2,6 +2,12 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import api from '../api/client'
 
+// Shared in-flight refresh. Module scope, not store state: this is
+// concurrency control for the network layer and must not cause renders.
+let inFlightRefresh = null
+// Guards against hydrate() running twice on a cold load.
+let hydrationStarted = false
+
 /**
  * Authentication store.
  *
@@ -75,26 +81,45 @@ export const useAuthStore = create(
       /**
        * Exchange the refresh token for a fresh access token.
        * Returns the new access token, or null if the session is unrecoverable.
-       * The backend rotates refresh tokens, so the old one is revoked on use.
+       *
+       * Concurrency: the backend ROTATES refresh tokens — using one revokes it
+       * and issues a replacement. Without de-duplication, several requests
+       * expiring at once (the dashboard fires /rate-limit, /history and
+       * /health_detailed together on mount) each send the same refresh token.
+       * The first succeeds; the rest are rejected because the token they sent
+       * was just revoked, and the 401 interceptor then logs the user out —
+       * destroying the perfectly valid session the first call had just
+       * established.
+       *
+       * All concurrent callers therefore share a single in-flight request.
        */
       refreshSession: async () => {
+        if (inFlightRefresh) return inFlightRefresh
+
         const refreshToken = get().refreshToken
         if (!refreshToken) return null
-        try {
-          const res = await api.post(
-            '/auth/refresh',
-            { refresh_token: refreshToken },
-            { skipAuthRefresh: true },
-          )
-          set({
-            token: res.data.token,
-            refreshToken: res.data.refresh_token || null,
-            user: { username: res.data.username, role: res.data.role },
-          })
-          return res.data.token
-        } catch {
-          return null
-        }
+
+        inFlightRefresh = (async () => {
+          try {
+            const res = await api.post(
+              '/auth/refresh',
+              { refresh_token: refreshToken },
+              { skipAuthRefresh: true },
+            )
+            set({
+              token: res.data.token,
+              refreshToken: res.data.refresh_token || null,
+              user: { username: res.data.username, role: res.data.role },
+            })
+            return res.data.token
+          } catch {
+            return null
+          } finally {
+            inFlightRefresh = null
+          }
+        })()
+
+        return inFlightRefresh
       },
 
       /**
@@ -102,6 +127,9 @@ export const useAuthStore = create(
        * server rather than trusting whatever was cached in storage.
        */
       hydrate: async () => {
+        if (hydrationStarted) return
+        hydrationStarted = true
+
         const token = get().token
         if (!token) {
           set({ hydrating: false })
@@ -123,6 +151,9 @@ export const useAuthStore = create(
       },
 
       logout: () => {
+        hydrationStarted = false
+        inFlightRefresh = null
+
         // Fire the revocation before clearing local state, otherwise the
         // request goes out unauthenticated and the server cannot revoke the
         // token it was meant to revoke.

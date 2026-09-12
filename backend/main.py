@@ -9,10 +9,12 @@ Core logic is imported unchanged from the copied modules.
 
 import os
 import sys
+import asyncio
 import logging
 import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
+from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 
 # ── Ensure backend/ is on sys.path (allows running from any CWD) ──
@@ -59,12 +61,22 @@ from auth import (
     validate_password, validate_username, sanitize_input,
     hash_password, verify_password,
 )
+# Async wrappers: supabase-py blocks, and blocking the single event loop
+# stalls every concurrent request in the process, not just this one.
 from database import (
-    init_db, get_user, create_user,
-    record_login_attempt, is_locked_out, count_recent_failures,
-    log_analysis, get_user_history, get_recent_analytics, count_users,
-    check_rate_limit, record_rate_event,
-    health_check as db_health_check,
+    init_db,
+    aget_user as get_user,
+    acreate_user as create_user,
+    arecord_login_attempt as record_login_attempt,
+    ais_locked_out as is_locked_out,
+    acount_recent_failures as count_recent_failures,
+    alog_analysis as log_analysis,
+    aget_user_history as get_user_history,
+    aget_recent_analytics as get_recent_analytics,
+    acount_users as count_users,
+    acheck_rate_limit as check_rate_limit,
+    arecord_rate_event as record_rate_event,
+    ahealth_check as db_health_check,
     MAX_ATTEMPTS, LOCKOUT_MINUTES, MAX_ANALYSES_PER_HOUR,
 )
 
@@ -189,7 +201,7 @@ async def health_check(request: Request):
     groq_ok     = getattr(state, "groq_available", False)
 
     ml_ok = bool(ml_models and len(ml_models) > 0)
-    db = db_health_check()
+    db = await db_health_check()
 
     components = {
         "ml_classifier":  {"ok": ml_ok,    "detail": "SVM v3 production model" if ml_ok else "not loaded"},
@@ -222,6 +234,11 @@ async def health_check(request: Request):
 # ═══════════════════════════════════════════════
 # AUTH ENDPOINTS
 # ═══════════════════════════════════════════════
+# A real bcrypt hash of a value nobody holds. Used so that a login attempt
+# for a non-existent account performs the same work as one for a real
+# account, removing the timing signal that distinguishes them.
+_DUMMY_PASSWORD_HASH = hash_password(uuid4().hex + uuid4().hex).decode()
+
 @app.post("/api/auth/login")
 async def login(req: LoginRequest, request: Request):
     # Per-IP throttle. The per-account lockout below protects a *known*
@@ -240,7 +257,7 @@ async def login(req: LoginRequest, request: Request):
         )
 
     # Check lockout
-    locked, remaining = is_locked_out(username)
+    locked, remaining = await is_locked_out(username)
     if locked:
         log_event(logging.WARNING, "auth.login_locked", username=username)
         return JSONResponse(status_code=423, content={
@@ -249,9 +266,22 @@ async def login(req: LoginRequest, request: Request):
             "minutes_remaining": remaining,
         })
 
-    user = get_user(username)
-    if not user or not verify_password(req.password, user["password_hash"]):
-        record_login_attempt(username, False)
+    user = await get_user(username)
+    # Constant-work comparison.
+    #
+    # Python's `or` short-circuits, so the previous
+    # `if not user or not verify_password(...)` skipped bcrypt entirely for a
+    # username that does not exist. bcrypt at cost 12 takes ~200ms, so an
+    # unknown account answered visibly faster than a known one with a wrong
+    # password — a timing side-channel that re-enabled exactly the username
+    # enumeration the uniform error message was written to prevent.
+    #
+    # Hashing against a fixed dummy hash makes both paths pay the same cost.
+    password_hash = user["password_hash"] if user else _DUMMY_PASSWORD_HASH
+    password_matches = await asyncio.to_thread(verify_password, req.password, password_hash)
+
+    if not user or not password_matches:
+        await record_login_attempt(username, False)
         log_event(logging.WARNING, "auth.login_failed", reason="bad_credentials")
         # Deliberately uniform, and deliberately WITHOUT a remaining-attempts
         # count: telling an attacker how many tries are left hands them a
@@ -260,7 +290,7 @@ async def login(req: LoginRequest, request: Request):
             "detail": "Invalid username or password",
         })
 
-    record_login_attempt(username, True)
+    await record_login_attempt(username, True)
     role = user.get("role", "user")
     access_token, _ = create_access_token(username, role)
     refresh_token, _ = create_refresh_token(username, role)
@@ -288,12 +318,12 @@ async def register(req: RegisterRequest, request: Request):
     if not valid_p:
         raise HTTPException(status_code=400, detail=reason_p)
 
-    if get_user(username):
+    if await get_user(username):
         raise HTTPException(status_code=409, detail="Username already taken")
 
-    pw_hash = hash_password(req.password)
+    pw_hash = await asyncio.to_thread(hash_password, req.password)
     try:
-        create_user(username, pw_hash)
+        await create_user(username, pw_hash)
     except HTTPException:
         raise
     except Exception as exc:
@@ -369,7 +399,6 @@ async def me(user: dict = Depends(get_current_user)):
 # Per-user lock: prevents multiple concurrent analyses from the same user.
 # If the user clicks "Analyze" while one is already running, the second
 # request is rejected immediately instead of queueing up Ollama calls.
-import asyncio
 _analysis_locks: dict[str, asyncio.Lock] = {}
 
 # Cap on retained locks. The dict previously grew by one entry per distinct
@@ -432,8 +461,15 @@ async def _cross_check_identifiers(transcript: str) -> dict:
             asyncio.gather(*(_lookup(k, v) for k, v in targets)),
             timeout=12.0,
         )
-    except (asyncio.TimeoutError, Exception) as exc:  # noqa: B014 - deliberate catch-all
-        log_event(logging.WARNING, "intel.crosscheck_failed", error=repr(exc)[:200])
+    except asyncio.TimeoutError:
+        # Expected: PenipuMY was slow. Routine, not a defect.
+        log_event(logging.WARNING, "intel.crosscheck_timeout", targets=len(targets))
+        return result
+    except Exception:
+        # A real defect. Logged separately so it is distinguishable from
+        # upstream latency in production logs, with the traceback retained
+        # server-side only.
+        logging.getLogger("shieldguard").exception("intel.crosscheck_error")
         return result
 
     result["checked"] = True
@@ -490,7 +526,7 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
 
     async with lock:
         # Rate limit
-        allowed, used = check_rate_limit(username)
+        allowed, used = await check_rate_limit(username)
         if not allowed:
             raise HTTPException(status_code=429, detail=f"Rate limit exceeded ({MAX_ANALYSES_PER_HOUR}/hour)")
 
@@ -503,7 +539,9 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
         nn_model = request.app.state.nn_model
 
         # ── STEP 1: ML Inference ──
-        ml_detail = run_inference_detailed(transcript, model_choice, models, nn_model)
+        ml_detail = await asyncio.to_thread(
+            run_inference_detailed, transcript, model_choice, models, nn_model
+        )
         ml_label = ml_detail["label"]
         ml_score = ml_detail["confidence"]
         vishing_probability = ml_detail["vishing_probability"]
@@ -544,7 +582,9 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
         highlighted = build_highlighted_transcript(transcript, phrases)
 
         # ── XAI ──
-        top_keywords = get_explanation(model_choice, transcript, models)
+        top_keywords = await asyncio.to_thread(
+            get_explanation, model_choice, transcript, models
+        )
 
         # ── Build ML-only result ──
         result = {
@@ -615,8 +655,8 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
 
         # ── Log to Supabase ──
         try:
-            record_rate_event(username)
-            log_analysis(
+            await record_rate_event(username)
+            await log_analysis(
                 username=username,
                 input_length=len(transcript),
                 input_mode=req.input_mode,
@@ -746,7 +786,7 @@ async def transcribe(file: UploadFile = File(...), user: dict = Depends(get_curr
 @app.get("/api/history")
 async def history(limit: int = 10, user: dict = Depends(get_current_user)):
     username = user["sub"]
-    rows = get_user_history(username, limit=min(limit, 50))
+    rows = await get_user_history(username, limit=min(limit, 50))
     return {"history": rows}
 
 
@@ -757,7 +797,7 @@ async def history(limit: int = 10, user: dict = Depends(get_current_user)):
 async def rate_limit_status(user: dict = Depends(get_current_user)):
     """Return the current user's scan usage for the rolling 1-hour window."""
     username = user["sub"]
-    allowed, used = check_rate_limit(username)
+    allowed, used = await check_rate_limit(username)
     return {
         "used": used,
         "max": MAX_ANALYSES_PER_HOUR,
@@ -780,7 +820,7 @@ async def health(request: Request):
     groq_ok = check_groq_available()
     request.app.state.groq_available = groq_ok
 
-    db = db_health_check()
+    db = await db_health_check()
 
     return {
         "ml_models": hasattr(request.app.state, "models") and bool(request.app.state.models),
@@ -808,7 +848,7 @@ async def analytics(user: dict = Depends(require_role("admin"))):
     """
     from collections import Counter, defaultdict
 
-    rows = get_recent_analytics(limit=500)
+    rows = await get_recent_analytics(limit=500)
 
     if not rows:
         return {
@@ -874,7 +914,7 @@ async def analytics(user: dict = Depends(require_role("admin"))):
     avg_confidence = round(sum(confs) / len(confs) * 100, 1) if confs else 0
     vishing_rate = round(verdict_counts.get("Vishing", 0) / len(rows) * 100, 1) if rows else 0
 
-    total_users = count_users() or len(set(r.get("username") for r in rows))
+    total_users = await count_users() or len(set(r.get("username") for r in rows))
 
     return {
         "total_scans": len(rows), "total_users": total_users,

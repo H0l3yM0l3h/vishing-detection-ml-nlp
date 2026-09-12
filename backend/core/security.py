@@ -33,9 +33,10 @@ login.
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
-from collections import defaultdict, deque
+from collections import OrderedDict, deque
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, Request
@@ -44,6 +45,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.config import settings
 from core.observability import log_event
+
+# Accepts IPv4 and IPv6 shapes only. Length-bounded so an oversized header
+# value cannot itself become the memory pressure.
+_IP_SHAPED = re.compile(r"^[0-9a-fA-F:.]{3,45}$")
 
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
@@ -208,23 +213,41 @@ def client_ip(request: Request) -> str:
     """
     forwarded = request.headers.get("X-Forwarded-For", "")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        candidate = forwarded.split(",")[0].strip()
+        # The header is client-controlled, so its VALUE cannot be trusted — but
+        # its SHAPE must still be constrained. Without this, an attacker sending
+        # a fresh arbitrary value per request creates one limiter key per
+        # request, growing the tracking dict without bound and turning a
+        # throttle into a memory-exhaustion vector.
+        if _IP_SHAPED.match(candidate):
+            return candidate
+        return "malformed-xff"
     return request.client.host if request.client else "unknown"
 
 
 class SlidingWindowLimiter:
     """In-process sliding-window limiter keyed by an arbitrary string."""
 
+    # Hard ceiling on tracked keys. Reached only under attack; a legitimate
+    # deployment sees far fewer distinct clients per window.
+    MAX_KEYS = 4096
+
     def __init__(self, limit: int, window_seconds: int, name: str = "limiter"):
         self.limit = limit
         self.window = window_seconds
         self.name = name
-        self._hits: dict[str, deque[float]] = defaultdict(deque)
+        # OrderedDict gives LRU eviction; a plain dict could only drop stale
+        # entries, which is useless when an attacker keeps every key fresh.
+        self._hits: OrderedDict[str, deque[float]] = OrderedDict()
 
     def check(self, key: str) -> tuple[bool, int]:
         """Record a hit. Returns ``(allowed, retry_after_seconds)``."""
         now = time.monotonic()
-        bucket = self._hits[key]
+        bucket = self._hits.get(key)
+        if bucket is None:
+            bucket = deque()
+            self._hits[key] = bucket
+        self._hits.move_to_end(key)
         cutoff = now - self.window
         while bucket and bucket[0] < cutoff:
             bucket.popleft()
@@ -238,11 +261,20 @@ class SlidingWindowLimiter:
         return True, 0
 
     def _prune(self, cutoff: float) -> None:
-        """Evict keys with no recent activity so the dict cannot grow forever."""
-        if len(self._hits) < 1024:
+        """Bound the keyspace.
+
+        First drop entries whose window has fully elapsed. If the table is
+        still at the ceiling — which happens when an attacker rotates the key
+        fast enough that every entry is fresh — evict least-recently-used
+        entries until it fits. Bounded memory matters more here than perfect
+        accounting for an attacker who is already being throttled.
+        """
+        if len(self._hits) < self.MAX_KEYS:
             return
-        for key in [k for k, v in self._hits.items() if not v or v[-1] < cutoff]:
+        for key in [k for k, v in list(self._hits.items()) if not v or v[-1] < cutoff]:
             self._hits.pop(key, None)
+        while len(self._hits) >= self.MAX_KEYS:
+            self._hits.popitem(last=False)
 
     def reset(self) -> None:
         self._hits.clear()
