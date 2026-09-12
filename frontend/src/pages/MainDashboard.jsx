@@ -24,6 +24,7 @@ import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
 import InjectionWarning from '../components/results/InjectionWarning'
 import ExtractedIntelPanel from '../components/results/ExtractedIntelPanel'
+import SignalConvergence from '../components/results/SignalConvergence'
 import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 import { useRateLimitStore } from '../hooks/useRateLimit'
@@ -214,6 +215,12 @@ export default function MainDashboard() {
 
                 <div style={{ marginTop: '12px' }}>
                   <ConfidenceBar confidence={result.confidence} verdict={result.verdict} />
+                </div>
+
+                {/* Makes the hybrid architecture legible: which independent
+                    layers ran, and which of them found something. */}
+                <div style={{ marginTop: '12px' }}>
+                  <SignalConvergence result={result} />
                 </div>
 
                 {/* ── Tier 2: evidence ── */}

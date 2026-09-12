@@ -269,7 +269,7 @@ export default function AdminDashboard() {
                 <div className="sg-kpi-row" style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                   <KPICard
                     label="Total Analyses"
-                    value={data.total_scans.toLocaleString()}
+                    value={(data.total_scans ?? 0).toLocaleString()}
                     sub="Lifetime scans recorded"
                     accent={C.indigo}
                   />
@@ -298,18 +298,18 @@ export default function AdminDashboard() {
 
                   {/* Verdict donut */}
                   <ChartCard title="Verdict Breakdown">
-                    {data.verdict_distribution.length > 0 ? (
+                    {(data.verdict_distribution?.length ?? 0) > 0 ? (
                       <ResponsiveContainer width="100%" height={230}>
                         <PieChart>
                           <Pie
-                            data={data.verdict_distribution}
+                            data={data.verdict_distribution ?? []}
                             cx="50%" cy="50%"
                             innerRadius={58} outerRadius={88}
                             paddingAngle={3}
                             dataKey="value"
                             strokeWidth={0}
                           >
-                            {data.verdict_distribution.map((entry) => (
+                            {(data.verdict_distribution ?? []).map((entry) => (
                               <Cell key={entry.name} fill={PIE_COLORS[entry.name] || C.indigo} />
                             ))}
                           </Pie>
@@ -337,7 +337,7 @@ export default function AdminDashboard() {
                   {/* Daily trend */}
                   <ChartCard title="Detection Trend  /  Last 7 Days">
                     <ResponsiveContainer width="100%" height={230}>
-                      <AreaChart data={data.daily_trend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <AreaChart data={data.daily_trend ?? []} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="gVishing" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%"  stopColor={C.red}   stopOpacity={0.25} />
@@ -370,13 +370,13 @@ export default function AdminDashboard() {
                   {/* Confidence histogram */}
                   <ChartCard title="Confidence Distribution">
                     <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={data.confidence_distribution} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <BarChart data={data.confidence_distribution ?? []} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
                         <XAxis dataKey="range" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fill: C.muted }} />
                         <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: C.muted }} allowDecimals={false} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="count" name="Analyses" radius={[4, 4, 0, 0]}>
-                          {data.confidence_distribution.map((entry, i) => {
+                          {(data.confidence_distribution ?? []).map((entry, i) => {
                             const pct = parseInt(entry.range)
                             const color = pct >= 80 ? C.red : pct >= 50 ? C.amber : C.green
                             return <Cell key={i} fill={color} fillOpacity={0.8} />
@@ -405,7 +405,7 @@ export default function AdminDashboard() {
                   <ChartCard title="Top Users by Activity">
                     {data.top_users.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        {data.top_users.map((u, i) => {
+                        {(data.top_users ?? []).map((u, i) => {
                           const maxScans = data.top_users[0]?.scans || 1
                           const pct = (u.scans / maxScans) * 100
                           const barColors = [C.indigo, C.blue, C.cyan, '#64748B', '#475569']

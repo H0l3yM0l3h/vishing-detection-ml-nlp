@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranscribeStore } from '../../hooks/useTranscribe'
 import { LiquidMetalButton } from '../ui/liquid-metal-button'
 
@@ -9,7 +9,7 @@ export default function AudioRecorder({ onTranscriptReady }) {
   const [micError, setMicError] = useState(null)
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
-  const { transcribe, loading } = useTranscribeStore()
+  const { transcribe, loading, error: transcribeError } = useTranscribeStore()
 
   const startRecording = useCallback(async () => {
     setMicError(null)
@@ -55,6 +55,16 @@ export default function AudioRecorder({ onTranscriptReady }) {
     }
   }, [recording])
 
+  useEffect(() => () => {
+    // Unmount cleanup: stopping only happens in recorder.onstop today, so
+    // navigating away mid-recording left the mic held open.
+    const recorder = mediaRecorder.current
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop() } catch { /* already stopped */ }
+      recorder.stream?.getTracks?.().forEach((t) => t.stop())
+    }
+  }, [])
+
   const handleTranscribe = async () => {
     if (!audioBlob) return
     const text = await transcribe(audioBlob, 'recording.webm')
@@ -64,6 +74,20 @@ export default function AudioRecorder({ onTranscriptReady }) {
   return (
     <div className="space-y-4">
       <div className="sec-label">Voice Capture</div>
+
+      {transcribeError && (
+        <div
+          role="alert"
+          className="text-[12px] leading-relaxed px-3 py-2 rounded-md"
+          style={{
+            color: 'var(--red)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            background: 'rgba(239,68,68,0.07)',
+          }}
+        >
+          {transcribeError}
+        </div>
+      )}
 
       {micError && (
         <div
