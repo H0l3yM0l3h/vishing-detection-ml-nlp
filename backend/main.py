@@ -632,6 +632,11 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
                     top_keywords=top_keywords,
                     suspicious_phrases=phrases,
                     vishing_probability=vishing_probability,
+                    # Independent evidence from intel_extract: a payment
+                    # account requested during the call, and any identifier
+                    # already reported to the scam database.
+                    payment_accounts=len(extracted_intel.get('accounts', [])),
+                    known_scam_identifiers=len(extracted_intel.get('matches', [])),
                 )
                 if hybrid.get("source") == "hybrid":
                     result["verdict"]        = hybrid.get("verdict", ml_label)

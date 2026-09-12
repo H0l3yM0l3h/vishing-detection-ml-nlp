@@ -30,6 +30,8 @@ async def run_hybrid_analysis(
     top_keywords: list,
     suspicious_phrases: list | None = None,
     vishing_probability: float | None = None,
+    payment_accounts: int = 0,
+    known_scam_identifiers: int = 0,
     llm_model: str = DEFAULT_LLM_MODEL,
 ) -> dict:
     """
@@ -124,6 +126,8 @@ async def run_hybrid_analysis(
         vishing_probability=vishing_probability,
         suspicious_phrases=suspicious_phrases or [],
         crew_result=crew_result,
+        payment_accounts=payment_accounts,
+        known_scam_identifiers=known_scam_identifiers,
     )
 
     return {
@@ -157,6 +161,8 @@ def _ml_first_verdict(
     vishing_probability: float,
     suspicious_phrases: list,
     crew_result: dict,
+    payment_accounts: int = 0,
+    known_scam_identifiers: int = 0,
 ) -> tuple[str, bool, str]:
     """
     Convert AI advisory into a final verdict without letting AI override ML.
@@ -170,6 +176,13 @@ def _ml_first_verdict(
     ai_verdict = str(crew_result.get("verdict", "")).upper()
     ai_risk = str(crew_result.get("risk_level", "")).lower()
     ai_alignment = str(crew_result.get("ml_alignment", "")).lower()
+
+    # A database hit is fact, not inference: this exact account or number has
+    # fraud reports filed against it. It therefore outranks every other signal,
+    # including a confident "safe" from the classifier, and is the one case
+    # where non-ML evidence may raise the verdict outright.
+    if known_scam_identifiers > 0:
+        return "vishing", False, "confirmed_scam_identifier"
 
     if ai_verdict in {"LLM UNAVAILABLE", "ANALYSIS ERROR"}:
         return ml_label, False, "unavailable"
@@ -228,6 +241,32 @@ def _ml_first_verdict(
 
     if ai_says_high_risk or has_rule_flags:
         return VERDICT_CAUTION, False, "ai_escalated_borderline_safe"
+
+    # ── Corroboration override ──────────────────────────────────────────
+    # The classifier is not sharply calibrated in the middle of its range, so
+    # a real scam can land at p≈0.71-0.73 and fall through as "safe". A
+    # parcel-customs scam demanding a transfer to a "clearance account" did
+    # exactly that.
+    #
+    # A payment account extracted from the call is independent, behavioural
+    # evidence: being asked to send money to an account during an unsolicited
+    # call is the defining action of a transfer scam, and no legitimate caller
+    # in the reference set does it. Measured across the sample library, a
+    # payment account appears in 2 of 3 scam calls and 0 of 3 genuine calls,
+    # including the two hard negatives (a real bank fraud alert and an
+    # appointment reminder).
+    #
+    # NOT used for this: similarity to the RAG corpus. That index contains
+    # only vishing examples, so every transcript matches something and the
+    # score carries no discriminating information — the genuine bank call
+    # scores 0.6501, HIGHER than the parcel scam's 0.5708. Using it as
+    # corroboration would flag exactly the calls the system must not flag.
+    #
+    # The escalation stops at "suspicious, unconfirmed". The ML layer declined
+    # to commit, so claiming "vishing" would overstate the evidence; refusing
+    # to flag it at all understates it.
+    if payment_accounts > 0:
+        return VERDICT_SUSPICIOUS, True, "review_payment_request_borderline_ml"
 
     if ai_says_safe:
         return "safe", False, "ai_supported_ml"
