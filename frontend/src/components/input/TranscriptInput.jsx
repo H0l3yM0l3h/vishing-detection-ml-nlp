@@ -18,6 +18,34 @@ export default function TranscriptInput({ onTranscriptReady }) {
     if (text.trim().length > 0 && !loading) onTranscriptReady(text.trim(), 'text')
   }
 
+  // Prefer the labelled library; fall back to the two legacy single strings so
+  // an older backend still shows something.
+  const TINT = {
+    vishing: {
+      text: '#EF4444',
+      border: 'rgba(239,68,68,.25)',
+      hover: 'rgba(239,68,68,.07)',
+    },
+    safe: {
+      text: '#10B981',
+      border: 'rgba(16,185,129,.25)',
+      hover: 'rgba(16,185,129,.07)',
+    },
+  }
+
+  const scenarioGroups = ['vishing', 'safe']
+    .map((kind) => {
+      const fromLibrary = samples?.scenarios?.[kind]
+      const items =
+        Array.isArray(fromLibrary) && fromLibrary.length > 0
+          ? fromLibrary
+          : samples?.[kind]
+            ? [{ id: kind, label: `Sample ${kind}`, text: samples[kind] }]
+            : []
+      return { kind, tint: TINT[kind], items }
+    })
+    .filter((g) => g.items.length > 0)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
@@ -97,41 +125,52 @@ export default function TranscriptInput({ onTranscriptReady }) {
         )}
       </div>
 
-      {/* Sample buttons */}
-      {samples && (
-        <div className="sg-sample-buttons" style={{ display: 'flex', gap: '10px' }}>
-          <button
-            className="sg-sample-button"
-            type="button"
-            onClick={() => setText(samples.vishing)}
+      {/* Example transcripts.
+          Previously two buttons holding one example each. The library now
+          covers the scam patterns that actually circulate here, plus the hard
+          negatives — a genuine bank fraud call and an appointment reminder —
+          which are the cases a naive keyword detector gets wrong. */}
+      {scenarioGroups.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span
             style={{
-              flex: 1, fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-              color: '#EF4444', border: '1px solid rgba(239,68,68,.25)',
-              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
-              cursor: 'pointer', transition: 'all .2s',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase',
+              color: 'var(--text-3)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,.07)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
           >
-            Sample Vishing
-          </button>
-          <button
-            className="sg-sample-button"
-            type="button"
-            onClick={() => setText(samples.safe)}
-            style={{
-              flex: 1, fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-              color: '#10B981', border: '1px solid rgba(16,185,129,.25)',
-              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
-              cursor: 'pointer', transition: 'all .2s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,.07)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-          >
-            Sample Safe
-          </button>
+            Try an example
+          </span>
+
+          {scenarioGroups.map(({ kind, tint, items }) => (
+            <div
+              key={kind}
+              className="sg-sample-buttons"
+              style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}
+            >
+              {items.map((s) => (
+                <button
+                  key={s.id}
+                  className="sg-sample-button"
+                  type="button"
+                  title={`${kind === 'vishing' ? 'Scam' : 'Legitimate'} call example`}
+                  onClick={() => setText(s.text)}
+                  style={{
+                    flex: '1 1 160px',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase',
+                    color: tint.text, border: `1px solid ${tint.border}`,
+                    borderRadius: '6px', padding: '8px 12px', background: 'transparent',
+                    cursor: 'pointer', transition: 'all .2s', textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = tint.hover }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       )}
 

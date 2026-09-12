@@ -48,7 +48,7 @@ from models_loader import load_all_models
 from inference import (
     run_inference, run_inference_detailed, get_explanation, detect_suspicious_phrases,
     build_highlighted_transcript, insufficient_evidence,
-    SAMPLE_VISHING, SAMPLE_SAFE,
+    SAMPLE_VISHING, SAMPLE_SAFE, SAMPLE_TRANSCRIPTS,
 )
 from hybrid_engine import run_hybrid_analysis, VERDICT_SUSPICIOUS
 from agents.prompt_guard import detect_injection
@@ -983,9 +983,15 @@ async def benchmark(request: Request, user: dict = Depends(get_current_user)):
 # ═══════════════════════════════════════════════
 @app.get("/api/samples")
 async def samples():
+    """Demonstration transcripts.
+
+    `vishing` and `safe` remain single strings so existing clients keep
+    working; `scenarios` carries the full labelled library.
+    """
     return {
         "vishing": SAMPLE_VISHING,
         "safe": SAMPLE_SAFE,
+        "scenarios": SAMPLE_TRANSCRIPTS,
     }
 
 
