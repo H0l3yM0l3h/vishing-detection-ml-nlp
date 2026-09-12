@@ -62,13 +62,61 @@ VISHING_PATTERNS = [
 ]
 
 
+# Phrases that invert the meaning of a suspicious term that follows them.
+# A legitimate bank call very often names the exact things a scammer asks for,
+# precisely in order to promise it will never ask for them:
+#
+#   "I will not ask you for your PIN, your password or any verification code,
+#    and nobody from the bank ever will."
+#
+# Matching "your PIN" and "verification code" there and raising a rule flag is
+# a false positive on the single most important negative case the system has
+# to get right — a real fraud-prevention call. Reassurance was being read as
+# a threat.
+_NEGATION_CUES = re.compile(
+    r"\b("
+    r"never (?:ask|request|require|need|call|send)|"
+    r"(?:will|would|do|does|did|shall|can)\s*n[o']?t\s+(?:ever\s+)?(?:ask|request|require|need|share|give|send)|"
+    r"no\s+one\s+(?:from|at|will)|"
+    r"nobody\s+(?:from|at|will)|"
+    r"we\s+(?:will\s+)?never|"
+    r"don'?t\s+(?:ever\s+)?(?:give|share|tell|provide)|"
+    r"do\s+not\s+(?:ever\s+)?(?:give|share|tell|provide)|"
+    r"without\s+asking"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# How far back to look for a negation cue, in characters. Long enough to span
+# "I will not ask you for your PIN, your password or any verification code",
+# short enough not to leak across sentences in a fast-talking scam script.
+_NEGATION_WINDOW = 120
+
+
+def _is_negated(text: str, start: int) -> bool:
+    """True when a negation cue governs the match beginning at ``start``."""
+    window = text[max(0, start - _NEGATION_WINDOW): start]
+    # A sentence boundary ends the scope of the negation.
+    last_stop = max(window.rfind("."), window.rfind("?"), window.rfind("!"))
+    if last_stop != -1:
+        window = window[last_stop + 1:]
+    return bool(_NEGATION_CUES.search(window))
+
+
 def detect_suspicious_phrases(text: str) -> list:
-    """Detect suspicious phrases using regex patterns. VERBATIM from streamlit_app.py."""
+    """Detect suspicious phrases using regex patterns.
+
+    Matches governed by a negation cue are skipped — see ``_NEGATION_CUES``.
+    The patterns themselves are unchanged from the original implementation.
+    """
     found = []
     for pat in VISHING_PATTERNS:
         for m in re.finditer(pat, text, re.IGNORECASE):
-            if m.group() not in found:
-                found.append(m.group())
+            if m.group() in found:
+                continue
+            if _is_negated(text, m.start()):
+                continue
+            found.append(m.group())
     return found
 
 

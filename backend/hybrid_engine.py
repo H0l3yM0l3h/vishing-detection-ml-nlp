@@ -174,10 +174,42 @@ def _ml_first_verdict(
     if ai_verdict in {"LLM UNAVAILABLE", "ANALYSIS ERROR"}:
         return ml_label, False, "unavailable"
 
-    ai_says_safe = "CALL APPEARS SAFE" in ai_verdict or ai_risk == "low"
-    ai_says_high_risk = "HANG UP NOW" in ai_verdict or ai_risk == "high"
+    # Token-based matching rather than exact-phrase matching.
+    #
+    # The prompt asks the model to reply with "CALL APPEARS SAFE" or "HANG UP
+    # NOW", but an LLM does not always comply exactly — in practice it returns
+    # "SAFE", "Legitimate call", "Appears safe" and so on. The previous
+    # `"CALL APPEARS SAFE" in ai_verdict` test failed on every one of those,
+    # silently discarding a clear AI judgement.
+    ai_says_safe = (
+        any(w in ai_verdict for w in ("SAFE", "LEGITIMATE", "BENIGN", "NO RISK", "GENUINE"))
+        or ai_risk == "low"
+    )
+    ai_says_high_risk = (
+        any(w in ai_verdict for w in ("HANG UP", "VISHING", "SCAM", "FRAUD", "PHISH"))
+        or ai_risk == "high"
+    )
     ai_questions_ml = ai_alignment == "questions_ml"
-    has_rule_flags = bool(suspicious_phrases)
+
+    # A single keyword match is weak evidence and should not, on its own,
+    # override a safe verdict from both the classifier and the AI reviewer.
+    #
+    # The regex layer matches surface strings, so a legitimate call saying
+    # "there is nothing you need to do right now" trips the urgency pattern on
+    # "right now". Requiring corroboration — two or more distinct flags, or an
+    # AI risk signal — keeps the rule layer useful as a tripwire without
+    # letting one ambiguous phrase dominate two stronger signals.
+    #
+    # This threshold applies only in the borderline band. Strong ML verdicts
+    # are handled above and are unaffected.
+    rule_flag_count = len(suspicious_phrases)
+    has_rule_flags = rule_flag_count >= 2
+
+    # "SAFE" is a substring of "NOT SAFE" / "UNSAFE"; make sure a negated
+    # verdict is never read as reassurance.
+    if any(w in ai_verdict for w in ("NOT SAFE", "UNSAFE", "NOT LEGITIMATE")):
+        ai_says_safe = False
+        ai_says_high_risk = True
 
     if vishing_probability >= STRONG_VISHING_PROB:
         if ai_says_safe or ai_questions_ml:
@@ -200,4 +232,20 @@ def _ml_first_verdict(
     if ai_says_safe:
         return "safe", False, "ai_supported_ml"
 
-    return VERDICT_INCONCLUSIVE, False, "needs_more_evidence"
+    # Nothing contradicts the ML verdict: no rule flags, no AI risk signal, no
+    # AI challenge to the classification. Defer to ML rather than returning
+    # INCONCLUSIVE.
+    #
+    # This branch previously returned INCONCLUSIVE, which produced a visibly
+    # wrong result on ordinary benign calls. The production model is not
+    # sharply calibrated in the middle of its range — genuinely safe calls land
+    # around p(vishing) 0.5-0.65 — so an ordinary customer-service call fell
+    # into the borderline band, and if the LLM's wording did not match the
+    # expected phrase exactly the user was told the call was "inconclusive"
+    # even though every signal available said safe.
+    #
+    # "Inconclusive" is reserved for a genuine absence of evidence (handled by
+    # insufficient_evidence() before this function is reached) or a real
+    # conflict between layers. Declining to commit when all layers agree is not
+    # caution, it is a failure to answer the question the user asked.
+    return ml_label, False, "ml_verdict_uncontested"

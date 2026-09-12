@@ -7,6 +7,8 @@ import { useAnalysisStore } from '../../hooks/useAnalysis'
 export default function TranscriptInput({ onTranscriptReady }) {
   const [text, setText] = useState('')
   const [samples, setSamples] = useState(null)
+  // Which example each sample button will load next.
+  const [cycle, setCycle] = useState({ vishing: 0, safe: 0 })
   const id = useId()
   const loading = useAnalysisStore((s) => s.loading)
 
@@ -22,11 +24,13 @@ export default function TranscriptInput({ onTranscriptReady }) {
   // an older backend still shows something.
   const TINT = {
     vishing: {
+      label: 'Sample Vishing',
       text: '#EF4444',
       border: 'rgba(239,68,68,.25)',
       hover: 'rgba(239,68,68,.07)',
     },
     safe: {
+      label: 'Sample Safe',
       text: '#10B981',
       border: 'rgba(16,185,129,.25)',
       hover: 'rgba(16,185,129,.07)',
@@ -40,9 +44,9 @@ export default function TranscriptInput({ onTranscriptReady }) {
         Array.isArray(fromLibrary) && fromLibrary.length > 0
           ? fromLibrary
           : samples?.[kind]
-            ? [{ id: kind, label: `Sample ${kind}`, text: samples[kind] }]
+            ? [{ id: kind, label: TINT[kind].label, text: samples[kind] }]
             : []
-      return { kind, tint: TINT[kind], items }
+      return { kind, tint: TINT[kind], label: TINT[kind].label, items }
     })
     .filter((g) => g.items.length > 0)
 
@@ -125,51 +129,39 @@ export default function TranscriptInput({ onTranscriptReady }) {
         )}
       </div>
 
-      {/* Example transcripts.
-          Previously two buttons holding one example each. The library now
-          covers the scam patterns that actually circulate here, plus the hard
-          negatives — a genuine bank fraud call and an appointment reminder —
-          which are the cases a naive keyword detector gets wrong. */}
+      {/* Sample buttons.
+          Two buttons, as before. Each click loads the next transcript in that
+          category, so the expanded library is reachable without adding
+          controls to the page. */}
       {scenarioGroups.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span
-            style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase',
-              color: 'var(--text-3)',
-            }}
-          >
-            Try an example
-          </span>
-
-          {scenarioGroups.map(({ kind, tint, items }) => (
-            <div
+        <div className="sg-sample-buttons" style={{ display: 'flex', gap: '10px' }}>
+          {scenarioGroups.map(({ kind, tint, items, label }) => (
+            <button
               key={kind}
-              className="sg-sample-buttons"
-              style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}
+              className="sg-sample-button"
+              type="button"
+              title={
+                items.length > 1
+                  ? `${items[cycle[kind] % items.length].label} — click again for another`
+                  : items[0].label
+              }
+              onClick={() => {
+                const next = (cycle[kind] ?? 0) % items.length
+                setText(items[next].text)
+                setCycle((c) => ({ ...c, [kind]: next + 1 }))
+              }}
+              style={{
+                flex: 1, fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
+                color: tint.text, border: `1px solid ${tint.border}`,
+                borderRadius: '6px', padding: '8px 12px', background: 'transparent',
+                cursor: 'pointer', transition: 'all .2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = tint.hover }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
-              {items.map((s) => (
-                <button
-                  key={s.id}
-                  className="sg-sample-button"
-                  type="button"
-                  title={`${kind === 'vishing' ? 'Scam' : 'Legitimate'} call example`}
-                  onClick={() => setText(s.text)}
-                  style={{
-                    flex: '1 1 160px',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase',
-                    color: tint.text, border: `1px solid ${tint.border}`,
-                    borderRadius: '6px', padding: '8px 12px', background: 'transparent',
-                    cursor: 'pointer', transition: 'all .2s', textAlign: 'left',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = tint.hover }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
+              {label}
+            </button>
           ))}
         </div>
       )}
