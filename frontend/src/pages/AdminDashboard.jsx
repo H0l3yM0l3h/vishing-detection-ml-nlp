@@ -10,6 +10,15 @@ import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import NeuralBackground from '../components/ui/flow-field-background'
 
+// Maps /api/health_detailed component keys to display names.
+const COMPONENT_LABELS = {
+  ml_classifier: 'ML Engine',
+  rag_chromadb:  'RAG Database',
+  llm_groq:      'Groq LLM',
+  whisper_stt:   'Speech-to-Text',
+  database:      'Supabase',
+}
+
 // ── Colour palette ────────────────────────────────────────────
 const C = {
   red:    '#EF4444',
@@ -98,6 +107,9 @@ export default function AdminDashboard() {
   const [ts, setTs]           = useState(null)
   const navigate = useNavigate()
 
+  // Live component health, replacing the previously hardcoded status lights.
+  const [systemComponents, setSystemComponents] = useState([])
+
   const loadData = async () => {
     setLoading(true)
     setError(null)
@@ -106,13 +118,43 @@ export default function AdminDashboard() {
       setData(res.data)
       setTs(new Date().toLocaleTimeString())
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to load analytics')
+      if (e.response?.status === 403) {
+        setError('Analytics is restricted to administrator accounts.')
+      } else {
+        setError(e.response?.data?.detail || 'Failed to load analytics')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadData()
+
+    // Defined inside the effect: it closes over nothing from render, so this
+    // keeps the dependency list honestly empty.
+    const loadSystemStatus = async () => {
+      try {
+        const res = await api.get('/health_detailed')
+        const components = res.data?.components || {}
+        setSystemComponents(
+          Object.entries(components).map(([key, value]) => ({
+            key,
+            label: COMPONENT_LABELS[key] || key,
+            ok: Boolean(value?.ok),
+            detail: value?.detail || (value?.ok ? 'operational' : 'unavailable'),
+          })),
+        )
+      } catch {
+        // A failed health check is itself a signal — show it as down rather
+        // than leaving stale green indicators on screen.
+        setSystemComponents([
+          { key: 'backend', label: 'Backend', ok: false, detail: 'status unavailable' },
+        ])
+      }
+    }
+    loadSystemStatus()
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -227,7 +269,7 @@ export default function AdminDashboard() {
                 <div className="sg-kpi-row" style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                   <KPICard
                     label="Total Analyses"
-                    value={data.total_scans.toLocaleString()}
+                    value={(data.total_scans ?? 0).toLocaleString()}
                     sub="Lifetime scans recorded"
                     accent={C.indigo}
                   />
@@ -256,18 +298,18 @@ export default function AdminDashboard() {
 
                   {/* Verdict donut */}
                   <ChartCard title="Verdict Breakdown">
-                    {data.verdict_distribution.length > 0 ? (
+                    {(data.verdict_distribution?.length ?? 0) > 0 ? (
                       <ResponsiveContainer width="100%" height={230}>
                         <PieChart>
                           <Pie
-                            data={data.verdict_distribution}
+                            data={data.verdict_distribution ?? []}
                             cx="50%" cy="50%"
                             innerRadius={58} outerRadius={88}
                             paddingAngle={3}
                             dataKey="value"
                             strokeWidth={0}
                           >
-                            {data.verdict_distribution.map((entry) => (
+                            {(data.verdict_distribution ?? []).map((entry) => (
                               <Cell key={entry.name} fill={PIE_COLORS[entry.name] || C.indigo} />
                             ))}
                           </Pie>
@@ -295,7 +337,7 @@ export default function AdminDashboard() {
                   {/* Daily trend */}
                   <ChartCard title="Detection Trend  /  Last 7 Days">
                     <ResponsiveContainer width="100%" height={230}>
-                      <AreaChart data={data.daily_trend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <AreaChart data={data.daily_trend ?? []} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="gVishing" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%"  stopColor={C.red}   stopOpacity={0.25} />
@@ -328,13 +370,13 @@ export default function AdminDashboard() {
                   {/* Confidence histogram */}
                   <ChartCard title="Confidence Distribution">
                     <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={data.confidence_distribution} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <BarChart data={data.confidence_distribution ?? []} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
                         <XAxis dataKey="range" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fill: C.muted }} />
                         <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: C.muted }} allowDecimals={false} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="count" name="Analyses" radius={[4, 4, 0, 0]}>
-                          {data.confidence_distribution.map((entry, i) => {
+                          {(data.confidence_distribution ?? []).map((entry, i) => {
                             const pct = parseInt(entry.range)
                             const color = pct >= 80 ? C.red : pct >= 50 ? C.amber : C.green
                             return <Cell key={i} fill={color} fillOpacity={0.8} />
@@ -363,7 +405,7 @@ export default function AdminDashboard() {
                   <ChartCard title="Top Users by Activity">
                     {data.top_users.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        {data.top_users.map((u, i) => {
+                        {(data.top_users ?? []).map((u, i) => {
                           const maxScans = data.top_users[0]?.scans || 1
                           const pct = (u.scans / maxScans) * 100
                           const barColors = [C.indigo, C.blue, C.cyan, '#64748B', '#475569']
@@ -416,21 +458,36 @@ export default function AdminDashboard() {
                   }}>
                     System Status
                   </div>
-                  {[
-                    { label: 'ML Engine',    detail: 'SVM v3 + Neural Net' },
-                    { label: 'RAG Database', detail: '1,266 indexed cases' },
-                    { label: 'Groq LLM',     detail: 'Llama 3.3 70B'      },
-                    { label: 'Supabase',     detail: 'Cloud PostgreSQL'    },
-                  ].map(s => (
-                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                        background: C.green, boxShadow: `0 0 6px ${C.green}`,
-                      }} />
+                  {/*
+                    These four indicators were previously hardcoded green dots
+                    with fixed captions — they reported "Supabase — Cloud
+                    PostgreSQL" as healthy throughout a total database outage.
+                    They are now driven by /api/health_detailed, the same
+                    endpoint the header status pill already polled and whose
+                    per-component map was being fetched and discarded.
+                  */}
+                  {systemComponents.length === 0 ? (
+                    <span style={{
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted,
+                    }}>
+                      Checking components…
+                    </span>
+                  ) : systemComponents.map(s => (
+                    <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                          background: s.ok ? C.green : C.red,
+                          boxShadow: `0 0 6px ${s.ok ? C.green : C.red}`,
+                        }}
+                      />
                       <span style={{
                         fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted,
                       }}>
-                        {s.label} — <span style={{ color: C.cardText }}>{s.detail}</span>
+                        {s.label} — <span style={{ color: s.ok ? C.cardText : C.red }}>
+                          {s.detail}
+                        </span>
                       </span>
                     </div>
                   ))}

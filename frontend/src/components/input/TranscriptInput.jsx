@@ -7,6 +7,8 @@ import { useAnalysisStore } from '../../hooks/useAnalysis'
 export default function TranscriptInput({ onTranscriptReady }) {
   const [text, setText] = useState('')
   const [samples, setSamples] = useState(null)
+  // Which example each sample button will load next.
+  const [cycle, setCycle] = useState({ vishing: 0, safe: 0 })
   const id = useId()
   const loading = useAnalysisStore((s) => s.loading)
 
@@ -17,6 +19,36 @@ export default function TranscriptInput({ onTranscriptReady }) {
   const handleAnalyze = () => {
     if (text.trim().length > 0 && !loading) onTranscriptReady(text.trim(), 'text')
   }
+
+  // Prefer the labelled library; fall back to the two legacy single strings so
+  // an older backend still shows something.
+  const TINT = {
+    vishing: {
+      label: 'Sample Vishing',
+      text: '#EF4444',
+      border: 'rgba(239,68,68,.25)',
+      hover: 'rgba(239,68,68,.07)',
+    },
+    safe: {
+      label: 'Sample Safe',
+      text: '#10B981',
+      border: 'rgba(16,185,129,.25)',
+      hover: 'rgba(16,185,129,.07)',
+    },
+  }
+
+  const scenarioGroups = ['vishing', 'safe']
+    .map((kind) => {
+      const fromLibrary = samples?.scenarios?.[kind]
+      const items =
+        Array.isArray(fromLibrary) && fromLibrary.length > 0
+          ? fromLibrary
+          : samples?.[kind]
+            ? [{ id: kind, label: TINT[kind].label, text: samples[kind] }]
+            : []
+      return { kind, tint: TINT[kind], label: TINT[kind].label, items }
+    })
+    .filter((g) => g.items.length > 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -97,41 +129,40 @@ export default function TranscriptInput({ onTranscriptReady }) {
         )}
       </div>
 
-      {/* Sample buttons */}
-      {samples && (
+      {/* Sample buttons.
+          Two buttons, as before. Each click loads the next transcript in that
+          category, so the expanded library is reachable without adding
+          controls to the page. */}
+      {scenarioGroups.length > 0 && (
         <div className="sg-sample-buttons" style={{ display: 'flex', gap: '10px' }}>
-          <button
-            className="sg-sample-button"
-            type="button"
-            onClick={() => setText(samples.vishing)}
-            style={{
-              flex: 1, fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-              color: '#EF4444', border: '1px solid rgba(239,68,68,.25)',
-              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
-              cursor: 'pointer', transition: 'all .2s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,.07)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-          >
-            Sample Vishing
-          </button>
-          <button
-            className="sg-sample-button"
-            type="button"
-            onClick={() => setText(samples.safe)}
-            style={{
-              flex: 1, fontFamily: "'JetBrains Mono', monospace",
-              fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
-              color: '#10B981', border: '1px solid rgba(16,185,129,.25)',
-              borderRadius: '6px', padding: '8px 12px', background: 'transparent',
-              cursor: 'pointer', transition: 'all .2s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,.07)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-          >
-            Sample Safe
-          </button>
+          {scenarioGroups.map(({ kind, tint, items, label }) => (
+            <button
+              key={kind}
+              className="sg-sample-button"
+              type="button"
+              title={
+                items.length > 1
+                  ? `${items[cycle[kind] % items.length].label} — click again for another`
+                  : items[0].label
+              }
+              onClick={() => {
+                const next = (cycle[kind] ?? 0) % items.length
+                setText(items[next].text)
+                setCycle((c) => ({ ...c, [kind]: next + 1 }))
+              }}
+              style={{
+                flex: 1, fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase',
+                color: tint.text, border: `1px solid ${tint.border}`,
+                borderRadius: '6px', padding: '8px 12px', background: 'transparent',
+                cursor: 'pointer', transition: 'all .2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = tint.hover }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 

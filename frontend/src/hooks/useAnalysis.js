@@ -11,18 +11,18 @@ export const useAnalysisStore = create((set, get) => ({
     // ── Guard: prevent duplicate concurrent submissions ──
     if (get().loading) return null
 
-    set({ loading: true, error: null, result: null, progress: 'Running ML analysis...' })
+    set({ loading: true, error: null, result: null, progress: 'Classifying with the ML model...' })
 
     const progressTimer = setTimeout(() => {
-      set({ progress: 'Querying scam database...' })
+      set({ progress: 'Matching against known scam calls...' })
     }, 3000)
 
     const progressTimer2 = setTimeout(() => {
-      set({ progress: 'AI agents reasoning...' })
+      set({ progress: 'Checking numbers and accounts...' })
     }, 8000)
 
     const progressTimer3 = setTimeout(() => {
-      set({ progress: 'Generating verdict...' })
+      set({ progress: 'AI review in progress...' })
     }, 15000)
 
     try {

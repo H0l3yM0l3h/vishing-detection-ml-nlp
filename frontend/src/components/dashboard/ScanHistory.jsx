@@ -4,16 +4,71 @@ import api from '../../api/client'
 export default function ScanHistory() {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     api.get('/history?limit=10')
-      .then((r) => setHistory(r.data.history || []))
-      .catch(() => {})
+      .then((r) => {
+        setHistory(r.data.history || [])
+        setError(null)
+      })
+      .catch((err) => {
+        // Previously `.catch(() => {})`: a failed fetch and an empty history
+        // were indistinguishable — the card simply vanished, so the user could
+        // not tell whether they had no scans or the request had failed.
+        setError(
+          err.response?.status === 503
+            ? 'History is unavailable while the database is unreachable.'
+            : 'Could not load your recent scans.',
+        )
+      })
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return null
-  if (history.length === 0) return null
+  if (loading) {
+    return (
+      <div className="sg-card !p-4 mt-8" aria-busy="true">
+        <div className="sec-label mb-3">Recent Scan History</div>
+        <div className="space-y-2" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              style={{
+                height: 28,
+                borderRadius: 6,
+                background: 'var(--surface-2)',
+                opacity: 0.5 - i * 0.12,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="sg-card !p-4 mt-8" role="alert">
+        <div className="sec-label mb-3">Recent Scan History</div>
+        <p className="text-[13px]" style={{ color: 'var(--text-2)', margin: 0 }}>
+          {error}
+        </p>
+      </div>
+    )
+  }
+
+  // An empty state, rather than rendering nothing: a new user should learn
+  // that this panel exists and what will appear in it.
+  if (history.length === 0) {
+    return (
+      <div className="sg-card !p-4 mt-8">
+        <div className="sec-label mb-3">Recent Scan History</div>
+        <p className="text-[13px]" style={{ color: 'var(--text-3)', margin: 0 }}>
+          Your scans will appear here. Analyse a call above to get started.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="sg-card !p-4 mt-8 scan-history-card">

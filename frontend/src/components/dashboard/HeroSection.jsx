@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 const PHRASES = [
   'ML + RAG + Multi-Agent LLM',
   'Hybrid Intelligence Engine',
-  '99.4% SVM Classifier Accuracy',
+  '98.9% SVM Classifier Accuracy',
   'Fully Explainable AI Verdicts',
   '2 AI Reviewers (Groq 70B)',
 ]
@@ -13,8 +13,25 @@ export default function HeroSection() {
   const [displayed, setDisplayed] = useState('')
   const [typing,    setTyping]    = useState(true)
 
+
   useEffect(() => {
     const target = PHRASES[phraseIdx]
+
+    // Respect the OS "reduce motion" setting: show each phrase whole and
+    // cycle slowly, instead of animating ~40 state updates per second.
+    // Vestibular disorders and motion sensitivity make character-by-character
+    // typing genuinely unpleasant, and this ran continuously on the page.
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+    if (reduceMotion) {
+      setDisplayed(target)
+      setTyping(false)
+      const hold = setTimeout(() => setPhraseIdx((x) => (x + 1) % PHRASES.length), 5000)
+      return () => clearTimeout(hold)
+    }
+
     let i = 0
     setDisplayed('')
     setTyping(true)
@@ -40,18 +57,8 @@ export default function HeroSection() {
   return (
     <div className="sg-hero" style={{ textAlign: 'center', padding: '56px 0 36px' }}>
 
-      {/* Subtle pill badge */}
-      <div className="sg-hero-pill" style={{
-        display: 'inline-flex', alignItems: 'center', gap: '7px',
-        background: 'var(--hero-pill-bg)',
-        border: '1px solid var(--hero-pill-border)',
-        borderRadius: '20px', padding: '5px 16px 5px 10px', marginBottom: '26px',
-      }}>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981', animation: 'blink 2s ease-in-out infinite' }} />
-        <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '13px', color: 'var(--hero-pill-text)', fontWeight: 700 }}>
-          AI-Powered Voice Threat Detection
-        </span>
-      </div>
+      {/* The badge slot that sat here was removed: live system status is
+          already shown in the header, so a second indicator was redundant. */}
 
       {/* Main heading — all WHITE, no purple gradient */}
       <h1 style={{

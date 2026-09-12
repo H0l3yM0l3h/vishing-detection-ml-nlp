@@ -62,13 +62,61 @@ VISHING_PATTERNS = [
 ]
 
 
+# Phrases that invert the meaning of a suspicious term that follows them.
+# A legitimate bank call very often names the exact things a scammer asks for,
+# precisely in order to promise it will never ask for them:
+#
+#   "I will not ask you for your PIN, your password or any verification code,
+#    and nobody from the bank ever will."
+#
+# Matching "your PIN" and "verification code" there and raising a rule flag is
+# a false positive on the single most important negative case the system has
+# to get right — a real fraud-prevention call. Reassurance was being read as
+# a threat.
+_NEGATION_CUES = re.compile(
+    r"\b("
+    r"never (?:ask|request|require|need|call|send)|"
+    r"(?:will|would|do|does|did|shall|can)\s*n[o']?t\s+(?:ever\s+)?(?:ask|request|require|need|share|give|send)|"
+    r"no\s+one\s+(?:from|at|will)|"
+    r"nobody\s+(?:from|at|will)|"
+    r"we\s+(?:will\s+)?never|"
+    r"don'?t\s+(?:ever\s+)?(?:give|share|tell|provide)|"
+    r"do\s+not\s+(?:ever\s+)?(?:give|share|tell|provide)|"
+    r"without\s+asking"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# How far back to look for a negation cue, in characters. Long enough to span
+# "I will not ask you for your PIN, your password or any verification code",
+# short enough not to leak across sentences in a fast-talking scam script.
+_NEGATION_WINDOW = 120
+
+
+def _is_negated(text: str, start: int) -> bool:
+    """True when a negation cue governs the match beginning at ``start``."""
+    window = text[max(0, start - _NEGATION_WINDOW): start]
+    # A sentence boundary ends the scope of the negation.
+    last_stop = max(window.rfind("."), window.rfind("?"), window.rfind("!"))
+    if last_stop != -1:
+        window = window[last_stop + 1:]
+    return bool(_NEGATION_CUES.search(window))
+
+
 def detect_suspicious_phrases(text: str) -> list:
-    """Detect suspicious phrases using regex patterns. VERBATIM from streamlit_app.py."""
+    """Detect suspicious phrases using regex patterns.
+
+    Matches governed by a negation cue are skipped — see ``_NEGATION_CUES``.
+    The patterns themselves are unchanged from the original implementation.
+    """
     found = []
     for pat in VISHING_PATTERNS:
         for m in re.finditer(pat, text, re.IGNORECASE):
-            if m.group() not in found:
-                found.append(m.group())
+            if m.group() in found:
+                continue
+            if _is_negated(text, m.start()):
+                continue
+            found.append(m.group())
     return found
 
 
@@ -350,18 +398,115 @@ def _predict_vishing_probability(clean_text: str, model_choice: str, models: dic
 # ═══════════════════════════════════════════════
 # SAMPLE TRANSCRIPTS (for frontend sample buttons)
 # ═══════════════════════════════════════════════
-SAMPLE_VISHING = (
-    "Hello, this is the Bank Security Department. We have detected suspicious and "
-    "unauthorized activity on your account. Your account will be suspended within "
-    "24 hours if you do not verify your details immediately. Please provide your "
-    "account number, PIN, and the OTP that will be sent to your phone. Do not tell "
-    "anyone about this call, including family members. If you fail to verify, legal "
-    "action will be taken against you. Press 1 to speak with our security officer now."
-)
-SAMPLE_SAFE = (
-    "Hello, I am calling from the customer service team. I noticed you recently placed "
-    "an order with us and wanted to follow up to make sure everything arrived correctly. "
-    "There is no urgency at all, this is just a courtesy call. If you have any questions "
-    "about your order or need to make a return, please call us back at our official number "
-    "listed on our website. Have a great day."
-)
+# ═══════════════════════════════════════════════════════════════════
+# DEMONSTRATION TRANSCRIPTS
+# ═══════════════════════════════════════════════════════════════════
+# A labelled library rather than one example per class, so the scanner can be
+# exercised against the scam patterns that actually circulate in Malaysia.
+#
+# Two are deliberately chosen to show the *limits* of the system as well as
+# its reach:
+#
+#   - "Macau scam" and "Parcel held by customs" both contain a callback number
+#     and a destination account, so they exercise the identifier extraction and
+#     the PenipuMY cross-check, not just the text classifier.
+#   - "Bank fraud alert (genuine)" is the hard negative: a real bank really
+#     does call about suspicious transactions. The distinguishing feature is
+#     that it never asks for an OTP, a PIN or a transfer — it tells you to go
+#     to a branch. A classifier that flags this is unusable in practice.
+#   - "Clinic appointment" contains a phone number in an entirely benign call,
+#     which demonstrates that extracting an identifier is not by itself an
+#     accusation.
+
+SAMPLE_TRANSCRIPTS = {
+    "vishing": [
+        {
+            "id": "bank-otp",
+            "label": "Bank impersonation — OTP theft",
+            "text": (
+                "Hello, this is the Bank Security Department. We have detected suspicious and "
+                "unauthorized activity on your account. Your account will be suspended within "
+                "24 hours if you do not verify your details immediately. Please provide your "
+                "account number, PIN, and the OTP that will be sent to your phone. Do not tell "
+                "anyone about this call, including family members. If you fail to verify, legal "
+                "action will be taken against you. Press 1 to speak with our security officer now."
+            ),
+        },
+        {
+            "id": "macau-scam",
+            "label": "Police / Bank Negara impersonation",
+            "text": (
+                "Selamat pagi. This is Inspector Rahim from the Bukit Aman commercial crime "
+                "division. Your identity card has been linked to a money laundering "
+                "investigation involving forty seven thousand ringgit. There is a warrant "
+                "prepared under your name. Bank Negara has instructed us to move your funds "
+                "into a government secured account for verification while the investigation "
+                "continues. The account number is 8821049377 and it is registered under the "
+                "Ministry of Finance. You must complete the transfer within two hours or we "
+                "will proceed with arrest. Do not discuss this case with anyone, including "
+                "your family, as this is an active investigation and you may be charged with "
+                "obstruction. Call me back directly at 03-8891 4420 once the transfer is done."
+            ),
+        },
+        {
+            "id": "parcel-customs",
+            "label": "Parcel held by customs",
+            "text": (
+                "Good afternoon, I am calling from the courier company regarding a parcel "
+                "addressed to you that has been detained by customs at KLIA. The package was "
+                "found to contain undeclared items and there is an outstanding duty of three "
+                "hundred and eighty ringgit. If this is not settled today the parcel will be "
+                "returned and a penalty will be recorded against your identity card. You can "
+                "settle it now by transferring to our clearance account, Maybank 514203887119. "
+                "Please send me the transfer receipt on WhatsApp at 012-778 4410 and I will "
+                "release the parcel immediately. Do not go to the customs office yourself, it "
+                "will only delay the release and the penalty will increase."
+            ),
+        },
+    ],
+    "safe": [
+        {
+            "id": "order-followup",
+            "label": "Customer service follow-up",
+            "text": (
+                "Hello, I am calling from the customer service team. I noticed you recently placed "
+                "an order with us and wanted to follow up to make sure everything arrived correctly. "
+                "There is no urgency at all, this is just a courtesy call. If you have any questions "
+                "about your order or need to make a return, please call us back at our official number "
+                "listed on our website. Have a great day."
+            ),
+        },
+        {
+            "id": "genuine-bank-alert",
+            "label": "Bank fraud alert (genuine)",
+            "text": (
+                "Good morning, I am calling from the card services team about two transactions "
+                "on your debit card this morning that did not match your usual spending. We "
+                "have already blocked the card as a precaution, so there is nothing you need "
+                "to do right now and no money has left your account. I will not ask you for "
+                "your PIN, your password or any verification code, and nobody from the bank "
+                "ever will. If you would like to confirm this call is genuine, please hang up "
+                "and call the number printed on the back of your card, or visit any branch "
+                "with your identity card. A replacement card will reach you in five working days."
+            ),
+        },
+        {
+            "id": "clinic-appointment",
+            "label": "Appointment reminder",
+            "text": (
+                "Hi, good morning. This is Siti calling from the dental clinic in Bandar Utama. "
+                "I am just confirming your cleaning appointment with Doctor Lim this Thursday "
+                "at three in the afternoon. There is nothing you need to bring apart from your "
+                "identity card, and payment is handled at the counter after the appointment as "
+                "usual. If Thursday no longer suits you, you can reach the clinic on "
+                "03-7726 9188 any time before six in the evening and we will find another slot. "
+                "Thank you, see you Thursday."
+            ),
+        },
+    ],
+}
+
+# Backwards compatibility: the API and the benchmark still reference a single
+# canonical example per class.
+SAMPLE_VISHING = SAMPLE_TRANSCRIPTS["vishing"][0]["text"]
+SAMPLE_SAFE = SAMPLE_TRANSCRIPTS["safe"][0]["text"]

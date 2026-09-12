@@ -22,17 +22,44 @@ import RAGSimilarCases from '../components/results/RAGSimilarCases'
 import ActionSteps from '../components/results/ActionSteps'
 import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
+import InjectionWarning from '../components/results/InjectionWarning'
+import ExtractedIntelPanel from '../components/results/ExtractedIntelPanel'
+import SignalConvergence from '../components/results/SignalConvergence'
 import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 import { useRateLimitStore } from '../hooks/useRateLimit'
 
 const STATS = [
+  // 98.88% clean-test accuracy, from models/svm_model_metadata.json.
+  // HeroSection previously claimed 99.4% on the same page.
   { val: '98.9%', label: 'ML Accuracy' },
   { val: 'SVM v3', label: 'Classifier' },
   { val: 'RAG',   label: 'Pattern DB' },
   { val: '2',     label: 'AI Reviewers' },
   { val: 'XAI',   label: 'Explainable' },
 ]
+
+/**
+ * A labelled group of result panels.
+ *
+ * Reuses the established `.sec-label` treatment — mono, tracked, with the
+ * hairline rule that fades to the right — which is already the app's way of
+ * introducing a block. The section itself contributes only rhythm: a wide gap
+ * above it to separate tiers, and a tighter gap between the panels inside it
+ * so they read as one group rather than four unrelated cards.
+ */
+function ResultSection({ title, children }) {
+  return (
+    <section style={{ marginTop: '36px' }}>
+      <h2 className="sec-label" style={{ marginBottom: '14px', fontWeight: 400 }}>
+        {title}
+      </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {children}
+      </div>
+    </section>
+  )
+}
 
 export default function MainDashboard() {
   const [, setInputMode] = useState('text')
@@ -138,7 +165,7 @@ export default function MainDashboard() {
                 <div style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: 'var(--text-3)',
                 }}>
-                  Hybrid analysis typically completes in 2–5 seconds
+                  ML classification is instant; the AI review layer usually takes 5–20 seconds
                 </div>
               </div>
             )}
@@ -146,13 +173,36 @@ export default function MainDashboard() {
             {error && <div style={{ marginTop: '24px' }}><WarnBox>{error}</WarnBox></div>}
 
             {result && !loading && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '28px' }} className="animate-fade-up">
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+              /*
+                Results are grouped into four tiers rather than presented as
+                one flat stack. Previously fourteen panels sat at an identical
+                16px gap with identical visual weight, so the verdict — the
+                one thing the user came for — competed for attention with the
+                RAG similar-cases list.
+
+                The hierarchy is expressed only through spacing and grouping:
+                wide gaps BETWEEN tiers, tight gaps WITHIN them. No new
+                colours, typefaces or card styles are introduced.
+              */
+              <div style={{ marginTop: '32px' }} className="animate-fade-up">
+
+                {/* ── Tier 0: interrupts ──
+                    Things that change how the rest should be read. They come
+                    before the verdict because they qualify it. */}
+                {(result.insufficient_evidence ||
+                  result.divergence_flag ||
+                  result.prompt_injection?.detected) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '28px' }}>
+                    {result.insufficient_evidence && <WarnBox>{result.insufficient_reason}</WarnBox>}
+                    {result.divergence_flag       && <DivergenceWarning />}
+                    <InjectionWarning injection={result.prompt_injection} />
+                  </div>
+                )}
+
+                {/* ── Tier 1: the answer ── */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
                   <StatusBadge source={result.source} />
                 </div>
-
-                {result.insufficient_evidence && <WarnBox>{result.insufficient_reason}</WarnBox>}
-                {result.divergence_flag       && <DivergenceWarning />}
 
                 <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
                   <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />
@@ -163,25 +213,45 @@ export default function MainDashboard() {
                   />
                 </div>
 
-                <ConfidenceBar    confidence={result.confidence} verdict={result.verdict} />
-                <PhraseChips      phrases={result.suspicious_phrases} />
-                <XAIPanel         keywords={result.top_keywords} />
+                <div style={{ marginTop: '12px' }}>
+                  <ConfidenceBar confidence={result.confidence} verdict={result.verdict} />
+                </div>
 
-                {result.source === 'hybrid' && (
-                  <>
-                    <AIAnalysisCard explanation={result.explanation} scamType={result.scam_type} />
-                    <TacticChips    tactics={result.tactics} />
-                    <RAGSimilarCases cases={result.similar_cases} />
-                    <ActionSteps    steps={result.action_steps} />
-                  </>
-                )}
+                {/* Makes the hybrid architecture legible: which independent
+                    layers ran, and which of them found something. */}
+                <div style={{ marginTop: '12px' }}>
+                  <SignalConvergence result={result} />
+                </div>
 
-                {result.source === 'ml_only' && !result.insufficient_evidence && (
-                  <InfoBox>AI explanation unavailable — showing ML analysis only. Check Groq API connection for full hybrid analysis.</InfoBox>
-                )}
+                {/* ── Tier 2: evidence ── */}
+                <ResultSection title="Evidence">
+                  <ExtractedIntelPanel intel={result.extracted_intel} />
+                  <PhraseChips phrases={result.suspicious_phrases} />
+                  <XAIPanel    keywords={result.top_keywords} />
 
-                <HighlightedTranscript html={result.highlighted_transcript} />
-                <SafetyAdvice          isVishing={isVishing} />
+                  {result.source === 'hybrid' && (
+                    <>
+                      <AIAnalysisCard explanation={result.explanation} scamType={result.scam_type} />
+                      <TacticChips    tactics={result.tactics} />
+                      <RAGSimilarCases cases={result.similar_cases} />
+                    </>
+                  )}
+
+                  {result.source === 'ml_only' && !result.insufficient_evidence && (
+                    <InfoBox>AI explanation unavailable — showing ML analysis only. Check Groq API connection for full hybrid analysis.</InfoBox>
+                  )}
+                </ResultSection>
+
+                {/* ── Tier 3: what to do ── */}
+                <ResultSection title="What to do next">
+                  {result.source === 'hybrid' && <ActionSteps steps={result.action_steps} />}
+                  <SafetyAdvice isVishing={isVishing} />
+                </ResultSection>
+
+                {/* ── Tier 4: reference ── */}
+                <ResultSection title="The call, annotated">
+                  <HighlightedTranscript html={result.highlighted_transcript} />
+                </ResultSection>
               </div>
             )}
 

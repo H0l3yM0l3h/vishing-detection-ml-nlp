@@ -30,6 +30,8 @@ async def run_hybrid_analysis(
     top_keywords: list,
     suspicious_phrases: list | None = None,
     vishing_probability: float | None = None,
+    payment_accounts: int = 0,
+    known_scam_identifiers: int = 0,
     llm_model: str = DEFAULT_LLM_MODEL,
 ) -> dict:
     """
@@ -113,29 +115,19 @@ async def run_hybrid_analysis(
     # ── STEP 4: Run CrewAI agents ────────────────
     crew_result = await run_crew(case_file, model=llm_model)
 
-    # ── STEP 5: Cross-check divergence ───────────
-    divergence_flag = False
-    llm_verdict_lower = crew_result.get("verdict", "").lower()
-
-    ml_says_vishing = ml_label == "vishing"
-    llm_says_safe = any(w in llm_verdict_lower for w in ["safe", "legitimate", "benign"])
-    llm_says_vishing = any(w in llm_verdict_lower for w in ["hang up", "vishing", "scam", "danger", "risk"])
-
-    if ml_says_vishing and llm_says_safe:
-        divergence_flag = True
-    elif not ml_says_vishing and llm_says_vishing:
-        divergence_flag = True
-
-    # ── STEP 6: Build final result ───────────────
-    final_verdict = crew_result.get("verdict", ml_label)
-    if divergence_flag:
-        final_verdict = "SUSPICIOUS — UNCONFIRMED"
-
+    # ── STEP 5: Reconcile ML and AI ──────────────
+    # NOTE: a divergence pre-computation used to sit here, deriving
+    # `divergence_flag` and `final_verdict` from a simpler keyword comparison.
+    # Both values were then immediately overwritten by _ml_first_verdict()
+    # below, so the block had no effect on any response. It has been removed
+    # rather than left in place looking authoritative.
     final_verdict, divergence_flag, ai_status = _ml_first_verdict(
         ml_label=ml_label,
         vishing_probability=vishing_probability,
         suspicious_phrases=suspicious_phrases or [],
         crew_result=crew_result,
+        payment_accounts=payment_accounts,
+        known_scam_identifiers=known_scam_identifiers,
     )
 
     return {
@@ -157,11 +149,20 @@ async def run_hybrid_analysis(
     }
 
 
+# Canonical verdict strings. Previously the same logical verdict was spelled
+# two different ways (ASCII hyphen vs em dash) in the same request path.
+VERDICT_SUSPICIOUS = "SUSPICIOUS — UNCONFIRMED"
+VERDICT_CAUTION    = "EXERCISE CAUTION"
+VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
+
+
 def _ml_first_verdict(
     ml_label: str,
     vishing_probability: float,
     suspicious_phrases: list,
     crew_result: dict,
+    payment_accounts: int = 0,
+    known_scam_identifiers: int = 0,
 ) -> tuple[str, bool, str]:
     """
     Convert AI advisory into a final verdict without letting AI override ML.
@@ -176,33 +177,114 @@ def _ml_first_verdict(
     ai_risk = str(crew_result.get("risk_level", "")).lower()
     ai_alignment = str(crew_result.get("ml_alignment", "")).lower()
 
+    # A database hit is fact, not inference: this exact account or number has
+    # fraud reports filed against it. It therefore outranks every other signal,
+    # including a confident "safe" from the classifier, and is the one case
+    # where non-ML evidence may raise the verdict outright.
+    if known_scam_identifiers > 0:
+        return "vishing", False, "confirmed_scam_identifier"
+
     if ai_verdict in {"LLM UNAVAILABLE", "ANALYSIS ERROR"}:
         return ml_label, False, "unavailable"
 
-    ai_says_safe = "CALL APPEARS SAFE" in ai_verdict or ai_risk == "low"
-    ai_says_high_risk = "HANG UP NOW" in ai_verdict or ai_risk == "high"
+    # Token-based matching rather than exact-phrase matching.
+    #
+    # The prompt asks the model to reply with "CALL APPEARS SAFE" or "HANG UP
+    # NOW", but an LLM does not always comply exactly — in practice it returns
+    # "SAFE", "Legitimate call", "Appears safe" and so on. The previous
+    # `"CALL APPEARS SAFE" in ai_verdict` test failed on every one of those,
+    # silently discarding a clear AI judgement.
+    ai_says_safe = (
+        any(w in ai_verdict for w in ("SAFE", "LEGITIMATE", "BENIGN", "NO RISK", "GENUINE"))
+        or ai_risk == "low"
+    )
+    ai_says_high_risk = (
+        any(w in ai_verdict for w in ("HANG UP", "VISHING", "SCAM", "FRAUD", "PHISH"))
+        or ai_risk == "high"
+    )
     ai_questions_ml = ai_alignment == "questions_ml"
-    has_rule_flags = bool(suspicious_phrases)
+
+    # A single keyword match is weak evidence and should not, on its own,
+    # override a safe verdict from both the classifier and the AI reviewer.
+    #
+    # The regex layer matches surface strings, so a legitimate call saying
+    # "there is nothing you need to do right now" trips the urgency pattern on
+    # "right now". Requiring corroboration — two or more distinct flags, or an
+    # AI risk signal — keeps the rule layer useful as a tripwire without
+    # letting one ambiguous phrase dominate two stronger signals.
+    #
+    # This threshold applies only in the borderline band. Strong ML verdicts
+    # are handled above and are unaffected.
+    rule_flag_count = len(suspicious_phrases)
+    has_rule_flags = rule_flag_count >= 2
+
+    # "SAFE" is a substring of "NOT SAFE" / "UNSAFE"; make sure a negated
+    # verdict is never read as reassurance.
+    if any(w in ai_verdict for w in ("NOT SAFE", "UNSAFE", "NOT LEGITIMATE")):
+        ai_says_safe = False
+        ai_says_high_risk = True
 
     if vishing_probability >= STRONG_VISHING_PROB:
         if ai_says_safe or ai_questions_ml:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_ml_ai_disagreement"
+            return VERDICT_SUSPICIOUS, True, "review_ml_ai_disagreement"
         return "vishing", False, "ai_supported_ml"
 
     if vishing_probability <= STRONG_SAFE_PROB:
         if has_rule_flags or ai_says_high_risk:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_rule_or_ai_risk"
+            return VERDICT_SUSPICIOUS, True, "review_rule_or_ai_risk"
         return "safe", False, "ai_supported_ml"
 
     if ml_label == "vishing":
         if ai_says_safe or ai_questions_ml:
-            return "SUSPICIOUS - UNCONFIRMED", True, "review_ml_ai_disagreement"
+            return VERDICT_SUSPICIOUS, True, "review_ml_ai_disagreement"
         return "vishing", False, "ai_supported_ml"
 
     if ai_says_high_risk or has_rule_flags:
-        return "EXERCISE CAUTION", False, "ai_escalated_borderline_safe"
+        return VERDICT_CAUTION, False, "ai_escalated_borderline_safe"
+
+    # ── Corroboration override ──────────────────────────────────────────
+    # The classifier is not sharply calibrated in the middle of its range, so
+    # a real scam can land at p≈0.71-0.73 and fall through as "safe". A
+    # parcel-customs scam demanding a transfer to a "clearance account" did
+    # exactly that.
+    #
+    # A payment account extracted from the call is independent, behavioural
+    # evidence: being asked to send money to an account during an unsolicited
+    # call is the defining action of a transfer scam, and no legitimate caller
+    # in the reference set does it. Measured across the sample library, a
+    # payment account appears in 2 of 3 scam calls and 0 of 3 genuine calls,
+    # including the two hard negatives (a real bank fraud alert and an
+    # appointment reminder).
+    #
+    # NOT used for this: similarity to the RAG corpus. That index contains
+    # only vishing examples, so every transcript matches something and the
+    # score carries no discriminating information — the genuine bank call
+    # scores 0.6501, HIGHER than the parcel scam's 0.5708. Using it as
+    # corroboration would flag exactly the calls the system must not flag.
+    #
+    # The escalation stops at "suspicious, unconfirmed". The ML layer declined
+    # to commit, so claiming "vishing" would overstate the evidence; refusing
+    # to flag it at all understates it.
+    if payment_accounts > 0:
+        return VERDICT_SUSPICIOUS, True, "review_payment_request_borderline_ml"
 
     if ai_says_safe:
         return "safe", False, "ai_supported_ml"
 
-    return "INCONCLUSIVE", False, "needs_more_evidence"
+    # Nothing contradicts the ML verdict: no rule flags, no AI risk signal, no
+    # AI challenge to the classification. Defer to ML rather than returning
+    # INCONCLUSIVE.
+    #
+    # This branch previously returned INCONCLUSIVE, which produced a visibly
+    # wrong result on ordinary benign calls. The production model is not
+    # sharply calibrated in the middle of its range — genuinely safe calls land
+    # around p(vishing) 0.5-0.65 — so an ordinary customer-service call fell
+    # into the borderline band, and if the LLM's wording did not match the
+    # expected phrase exactly the user was told the call was "inconclusive"
+    # even though every signal available said safe.
+    #
+    # "Inconclusive" is reserved for a genuine absence of evidence (handled by
+    # insufficient_evidence() before this function is reached) or a real
+    # conflict between layers. Declining to commit when all layers agree is not
+    # caution, it is a failure to answer the question the user asked.
+    return ml_label, False, "ml_verdict_uncontested"

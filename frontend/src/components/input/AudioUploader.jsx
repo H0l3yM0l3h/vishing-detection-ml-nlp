@@ -12,7 +12,7 @@ export default function AudioUploader({ onTranscriptReady }) {
   const [error, setError] = useState(null)
   const inputRef = useRef()
   const id = useId()
-  const { transcribe, loading } = useTranscribeStore()
+  const { transcribe, loading, error: transcribeError } = useTranscribeStore()
 
   const handleFile = (f) => {
     setError(null)
@@ -92,9 +92,12 @@ export default function AudioUploader({ onTranscriptReady }) {
         </p>
       </div>
 
-      {error && (
-        <div style={{ background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#FCA5A5', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          {error}
+      {/* `error` is local validation (wrong format, too large);
+          `transcribeError` comes from the store and was previously never read,
+          so a failed transcription showed the user nothing at all. */}
+      {(error || transcribeError) && (
+        <div role="alert" style={{ background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#FCA5A5', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          {error || transcribeError}
         </div>
       )}
 

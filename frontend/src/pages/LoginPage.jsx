@@ -67,7 +67,6 @@ export default function LoginPage() {
   const [loginUser, setLoginUser] = useState('')
   const [loginPass, setLoginPass] = useState('')
   const [lockInfo,  setLockInfo]  = useState(null)
-  const [remaining, setRemaining] = useState(null)
 
   // Register
   const [regUser,    setRegUser]    = useState('')
@@ -87,12 +86,14 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault()
     setShowWakeupText(false)
-    setLockInfo(null); setRemaining(null)
+    setLockInfo(null)
     const res = await login(loginUser.trim(), loginPass)
     setShowWakeupText(false)
     if (!res?.success) {
       if (res?.locked)                            setLockInfo({ minutes: res.minutes_remaining })
-      if (res?.remaining_attempts !== undefined)  setRemaining(res.remaining_attempts)
+      // The API deliberately no longer returns a remaining-attempts count:
+      // telling an attacker how many tries are left before lockout hands
+      // them a budget for staying just under the threshold.
     }
   }
 
@@ -182,7 +183,6 @@ export default function LoginPage() {
                 {error && !lockInfo && (
                   <div style={{ background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', color: '#FCA5A5' }}>{error}</span>
-                    {remaining !== null && <span style={{ fontSize: '11px', color: '#71717a' }}>{remaining} attempts left</span>}
                   </div>
                 )}
                 <div className="grid gap-2">
@@ -247,9 +247,22 @@ export default function LoginPage() {
                   <p style={{ fontSize: '12px', color: '#FCA5A5', marginTop: '-8px' }}>Passwords do not match</p>
                 )}
 
-                {/* T&C agreement row */}
+                {/* T&C agreement row.
+                    This was a <div onClick> with no role, tabIndex or key
+                    handler. Because "Create Account" stays disabled until it is
+                    ticked, a keyboard-only or screen-reader user could not
+                    register at all — the control was invisible to assistive
+                    technology and unreachable by Tab.
+
+                    It is now a real <button role="checkbox">: focusable,
+                    operable with Space and Enter (a button's native behaviour),
+                    and announced with its checked state. */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' }}>
-                  <div
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={tocAgreed}
+                    aria-labelledby="toc-agreement-label"
                     onClick={() => setTocAgreed((v) => !v)}
                     style={{
                       width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, cursor: 'pointer',
@@ -257,15 +270,19 @@ export default function LoginPage() {
                       background: tocAgreed ? '#6366f1' : 'transparent',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       transition: 'all .15s',
+                      padding: 0,
                     }}
                   >
                     {tocAgreed && (
-                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none" aria-hidden="true">
                         <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     )}
-                  </div>
-                  <span style={{ fontSize: '13px', color: 'var(--login-muted)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  </button>
+                  <span
+                    id="toc-agreement-label"
+                    style={{ fontSize: '13px', color: 'var(--login-muted)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     I have read and agree to the{' '}
                     <TocDialog onAgree={() => setTocAgreed(true)} />
                   </span>
