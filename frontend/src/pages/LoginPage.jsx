@@ -92,7 +92,9 @@ export default function LoginPage() {
     setShowWakeupText(false)
     if (!res?.success) {
       if (res?.locked)                            setLockInfo({ minutes: res.minutes_remaining })
-      if (res?.remaining_attempts !== undefined)  setRemaining(res.remaining_attempts)
+      // The API deliberately no longer returns a remaining-attempts count:
+      // telling an attacker how many tries are left before lockout hands
+      // them a budget for staying just under the threshold.
     }
   }
 

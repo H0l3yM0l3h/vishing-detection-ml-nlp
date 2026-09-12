@@ -1,42 +1,38 @@
 import { create } from 'zustand'
-import axios from 'axios'
 import api from '../api/client'
 
-// Helper to check if error indicates a proxy/server block
-const isServerBlock = (err) => {
-  const detail = err.response?.data?.detail || ''
-  return (
-    err.response?.status === 502 ||
-    err.response?.status === 403 ||
-    detail.includes('403') ||
-    detail.includes('Forbidden')
-  )
-}
+/**
+ * PenipuMY threat-intelligence lookups.
+ *
+ * SECURITY CHANGE
+ * ---------------
+ * This store used to fetch the PenipuMY API key from `GET /threat-intel/key`
+ * and then call `https://penipu.my/api/v1` straight from the browser whenever
+ * the server-side proxy returned 403/502. That made a third-party credential
+ * readable by anyone who could open DevTools — and since registration is open,
+ * by anyone at all. The endpoint has been removed from the backend and the
+ * direct-from-browser path is gone with it.
+ *
+ * Every lookup now goes through the server, which holds the key. If the
+ * server's egress IP is blocked upstream, the honest answer is that the
+ * lookup is unavailable — not to hand the credential to the client and ask
+ * the user to disable browser security.
+ */
 
-// Fetch the API key from backend
-const getApiKey = async () => {
-  try {
-    const res = await api.get('/threat-intel/key')
-    return res.data.key
-  } catch {
-    return null
+const friendlyError = (err, fallback) => {
+  const status = err.response?.status
+  const detail = err.response?.data?.detail
+
+  if (status === 503) {
+    return detail || 'Threat intelligence is not configured on the server.'
   }
-}
-
-// Perform direct query from browser to PenipuMY
-const directQuery = async (endpoint, params = {}, apiKey) => {
-  const key = apiKey || await getApiKey()
-  if (!key) throw new Error('PenipuMY API key not configured on server')
-
-  // Run call directly from client browser
-  const res = await axios.get(`https://penipu.my/api/v1${endpoint}`, {
-    params,
-    headers: {
-      'X-API-Key': key,
-      'Accept': 'application/json',
-    }
-  })
-  return res.data
+  if (status === 502) {
+    return 'The threat intelligence provider could not be reached. Please try again shortly.'
+  }
+  if (status === 429) {
+    return 'Too many lookups. Please wait a moment before trying again.'
+  }
+  return detail || fallback
 }
 
 export const useThreatIntelStore = create((set, get) => ({
@@ -64,23 +60,11 @@ export const useThreatIntelStore = create((set, get) => ({
     if (get().phoneLoading) return
     set({ phoneLoading: true, phoneError: null, phoneResult: null })
     try {
-      // Try backend proxy first
       const res = await api.get('/threat-intel/phone', { params: { q: phoneNumber } })
       set({ phoneResult: res.data, phoneLoading: false })
     } catch (err) {
-      let finalErr = err
-      if (isServerBlock(err)) {
-        // Fallback: Direct browser fetch
-        try {
-          const data = await directQuery('/phone', { q: phoneNumber })
-          set({ phoneResult: data, phoneLoading: false })
-          return
-        } catch (directErr) {
-          finalErr = directErr
-        }
-      }
       set({
-        phoneError: finalErr.response?.data?.detail || finalErr.message || 'Phone lookup failed',
+        phoneError: friendlyError(err, 'Phone lookup failed'),
         phoneLoading: false,
       })
     }
@@ -93,18 +77,8 @@ export const useThreatIntelStore = create((set, get) => ({
       const res = await api.get('/threat-intel/bank', { params: { q: accountNumber } })
       set({ bankResult: res.data, bankLoading: false })
     } catch (err) {
-      let finalErr = err
-      if (isServerBlock(err)) {
-        try {
-          const data = await directQuery('/bank', { q: accountNumber })
-          set({ bankResult: data, bankLoading: false })
-          return
-        } catch (directErr) {
-          finalErr = directErr
-        }
-      }
       set({
-        bankError: finalErr.response?.data?.detail || finalErr.message || 'Bank lookup failed',
+        bankError: friendlyError(err, 'Bank lookup failed'),
         bankLoading: false,
       })
     }
@@ -117,18 +91,8 @@ export const useThreatIntelStore = create((set, get) => ({
       const res = await api.get('/threat-intel/search', { params: { q: query, type } })
       set({ searchResults: res.data, searchLoading: false })
     } catch (err) {
-      let finalErr = err
-      if (isServerBlock(err)) {
-        try {
-          const data = await directQuery('/search', { q: query, type })
-          set({ searchResults: data, searchLoading: false })
-          return
-        } catch (directErr) {
-          finalErr = directErr
-        }
-      }
       set({
-        searchError: finalErr.response?.data?.detail || finalErr.message || 'Search failed',
+        searchError: friendlyError(err, 'Search failed'),
         searchLoading: false,
       })
     }
@@ -141,34 +105,20 @@ export const useThreatIntelStore = create((set, get) => ({
       const res = await api.get('/threat-intel/stats')
       set({ stats: res.data, statsLoading: false })
     } catch (err) {
-      let finalErr = err
-      if (isServerBlock(err)) {
-        try {
-          const data = await directQuery('/stats')
-          set({ stats: data, statsLoading: false })
-          return
-        } catch (directErr) {
-          // If it fails (possibly due to CORS), show a clean custom instruction
-          if (directErr.message?.includes('Network Error')) {
-             set({
-               statsError: 'Hugging Face server IP is blocked by PenipuMY firewall. Please enable a CORS extension or query using Localhost.',
-               statsLoading: false
-             })
-             return
-          }
-          finalErr = directErr
-        }
-      }
       set({
-        statsError: finalErr.response?.data?.detail || finalErr.message || 'Failed to load stats',
+        statsError: friendlyError(err, 'Failed to load statistics'),
         statsLoading: false,
       })
     }
   },
 
-  clearResults: () => set({
-    phoneResult: null, phoneError: null,
-    bankResult: null, bankError: null,
-    searchResults: null, searchError: null,
-  }),
+  clearResults: () =>
+    set({
+      phoneResult: null,
+      phoneError: null,
+      bankResult: null,
+      bankError: null,
+      searchResults: null,
+      searchError: null,
+    }),
 }))

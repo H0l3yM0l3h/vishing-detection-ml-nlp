@@ -22,11 +22,14 @@ import RAGSimilarCases from '../components/results/RAGSimilarCases'
 import ActionSteps from '../components/results/ActionSteps'
 import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
+import InjectionWarning from '../components/results/InjectionWarning'
 import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 import { useRateLimitStore } from '../hooks/useRateLimit'
 
 const STATS = [
+  // 98.88% clean-test accuracy, from models/svm_model_metadata.json.
+  // HeroSection previously claimed 99.4% on the same page.
   { val: '98.9%', label: 'ML Accuracy' },
   { val: 'SVM v3', label: 'Classifier' },
   { val: 'RAG',   label: 'Pattern DB' },
@@ -153,6 +156,8 @@ export default function MainDashboard() {
 
                 {result.insufficient_evidence && <WarnBox>{result.insufficient_reason}</WarnBox>}
                 {result.divergence_flag       && <DivergenceWarning />}
+                {/* Adversarial-content notice: the caller tried to steer the AI layer. */}
+                <InjectionWarning injection={result.prompt_injection} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
                   <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />

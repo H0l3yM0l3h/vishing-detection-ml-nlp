@@ -6,11 +6,13 @@ export default function AudioRecorder({ onTranscriptReady }) {
   const [recording, setRecording] = useState(false)
   const [audioUrl, setAudioUrl] = useState(null)
   const [audioBlob, setAudioBlob] = useState(null)
+  const [micError, setMicError] = useState(null)
   const mediaRecorder = useRef(null)
   const chunks = useRef([])
   const { transcribe, loading } = useTranscribeStore()
 
   const startRecording = useCallback(async () => {
+    setMicError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
@@ -31,7 +33,18 @@ export default function AudioRecorder({ onTranscriptReady }) {
       recorder.start()
       setRecording(true)
     } catch (err) {
+      // Previously this was console.error only: the user pressed "START
+      // RECORDING" and nothing visible happened, with no way to tell that the
+      // browser had blocked the microphone.
       console.error('Microphone access denied:', err)
+      const message =
+        err?.name === 'NotAllowedError'
+          ? 'Microphone access was blocked. Allow it in your browser’s address bar, then try again.'
+          : err?.name === 'NotFoundError'
+            ? 'No microphone was found. Connect one, or upload an audio file instead.'
+            : 'Could not start recording. You can upload an audio file instead.'
+      setMicError(message)
+      setRecording(false)
     }
   }, [])
 
@@ -51,6 +64,20 @@ export default function AudioRecorder({ onTranscriptReady }) {
   return (
     <div className="space-y-4">
       <div className="sec-label">Voice Capture</div>
+
+      {micError && (
+        <div
+          role="alert"
+          className="text-[12px] leading-relaxed px-3 py-2 rounded-md"
+          style={{
+            color: 'var(--red)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            background: 'rgba(239,68,68,0.07)',
+          }}
+        >
+          {micError}
+        </div>
+      )}
 
       <div className="flex items-center gap-4">
         {!recording ? (

@@ -102,7 +102,11 @@ export default function Header() {
 
           <ThemeSwitch />
 
-          {/* Analytics link */}
+          {/* Analytics link — admin only.
+              /api/analytics returns every user's scan history and a username
+              leaderboard, and is now enforced server-side as admin-only.
+              Showing the link to everyone would just route them into a 403. */}
+          {user?.role === 'admin' && (
           <button
             id="nav-analytics-btn"
             onClick={() => navigate('/admin')}
@@ -125,6 +129,7 @@ export default function Header() {
           >
             Analytics
           </button>
+          )}
 
           {/* Threat Intel link */}
           <button

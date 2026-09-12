@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 const PHRASES = [
   'ML + RAG + Multi-Agent LLM',
   'Hybrid Intelligence Engine',
-  '99.4% SVM Classifier Accuracy',
+  '98.9% SVM Classifier Accuracy',
   'Fully Explainable AI Verdicts',
   '2 AI Reviewers (Groq 70B)',
 ]

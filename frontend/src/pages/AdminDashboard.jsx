@@ -10,6 +10,15 @@ import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import NeuralBackground from '../components/ui/flow-field-background'
 
+// Maps /api/health_detailed component keys to display names.
+const COMPONENT_LABELS = {
+  ml_classifier: 'ML Engine',
+  rag_chromadb:  'RAG Database',
+  llm_groq:      'Groq LLM',
+  whisper_stt:   'Speech-to-Text',
+  database:      'Supabase',
+}
+
 // ── Colour palette ────────────────────────────────────────────
 const C = {
   red:    '#EF4444',
@@ -98,6 +107,9 @@ export default function AdminDashboard() {
   const [ts, setTs]           = useState(null)
   const navigate = useNavigate()
 
+  // Live component health, replacing the previously hardcoded status lights.
+  const [systemComponents, setSystemComponents] = useState([])
+
   const loadData = async () => {
     setLoading(true)
     setError(null)
@@ -106,13 +118,43 @@ export default function AdminDashboard() {
       setData(res.data)
       setTs(new Date().toLocaleTimeString())
     } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to load analytics')
+      if (e.response?.status === 403) {
+        setError('Analytics is restricted to administrator accounts.')
+      } else {
+        setError(e.response?.data?.detail || 'Failed to load analytics')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadData()
+
+    // Defined inside the effect: it closes over nothing from render, so this
+    // keeps the dependency list honestly empty.
+    const loadSystemStatus = async () => {
+      try {
+        const res = await api.get('/health_detailed')
+        const components = res.data?.components || {}
+        setSystemComponents(
+          Object.entries(components).map(([key, value]) => ({
+            key,
+            label: COMPONENT_LABELS[key] || key,
+            ok: Boolean(value?.ok),
+            detail: value?.detail || (value?.ok ? 'operational' : 'unavailable'),
+          })),
+        )
+      } catch {
+        // A failed health check is itself a signal — show it as down rather
+        // than leaving stale green indicators on screen.
+        setSystemComponents([
+          { key: 'backend', label: 'Backend', ok: false, detail: 'status unavailable' },
+        ])
+      }
+    }
+    loadSystemStatus()
+  }, [])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -416,21 +458,36 @@ export default function AdminDashboard() {
                   }}>
                     System Status
                   </div>
-                  {[
-                    { label: 'ML Engine',    detail: 'SVM v3 + Neural Net' },
-                    { label: 'RAG Database', detail: '1,266 indexed cases' },
-                    { label: 'Groq LLM',     detail: 'Llama 3.3 70B'      },
-                    { label: 'Supabase',     detail: 'Cloud PostgreSQL'    },
-                  ].map(s => (
-                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                        background: C.green, boxShadow: `0 0 6px ${C.green}`,
-                      }} />
+                  {/*
+                    These four indicators were previously hardcoded green dots
+                    with fixed captions — they reported "Supabase — Cloud
+                    PostgreSQL" as healthy throughout a total database outage.
+                    They are now driven by /api/health_detailed, the same
+                    endpoint the header status pill already polled and whose
+                    per-component map was being fetched and discarded.
+                  */}
+                  {systemComponents.length === 0 ? (
+                    <span style={{
+                      fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted,
+                    }}>
+                      Checking components…
+                    </span>
+                  ) : systemComponents.map(s => (
+                    <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                          background: s.ok ? C.green : C.red,
+                          boxShadow: `0 0 6px ${s.ok ? C.green : C.red}`,
+                        }}
+                      />
                       <span style={{
                         fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: C.muted,
                       }}>
-                        {s.label} — <span style={{ color: C.cardText }}>{s.detail}</span>
+                        {s.label} — <span style={{ color: s.ok ? C.cardText : C.red }}>
+                          {s.detail}
+                        </span>
                       </span>
                     </div>
                   ))}
