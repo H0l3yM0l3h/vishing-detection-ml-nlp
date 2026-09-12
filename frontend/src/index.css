@@ -1001,3 +1001,93 @@ mark.hlt {
   }
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   ACCESSIBILITY & MOBILE HARDENING
+   Added in the v4 polish pass. These rules refine behaviour only —
+   no palette, typeface or layout token is changed.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Keyboard focus ─────────────────────────────────────────────
+   The app defined no focus styling at all beyond .sg-input, and many
+   controls are custom <div>/<button> elements. A keyboard user had no
+   way to see where they were on the page. Uses the existing accent
+   token so it reads as part of the same system.                  */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent, #6366F1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Mouse users keep the original look. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Reduced motion ────────────────────────────────────────────
+   Nothing in the app honoured this. The page runs an uncapped
+   requestAnimationFrame canvas field, a typewriter, two blink loops
+   and ambient "threat mood" pulses simultaneously.               */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Generative backgrounds are decorative; hide rather than freeze
+     them so no partially-drawn frame is left on screen. */
+  canvas {
+    display: none !important;
+  }
+}
+
+/* ── Mobile ────────────────────────────────────────────────────
+   The layout had three breakpoints but no protection against the
+   two things that actually break a dashboard on a phone: sideways
+   scroll from a single wide child, and iOS auto-zooming on any
+   input whose font-size is under 16px.                           */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  /* Stop iOS inflating text after an orientation change. */
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (max-width: 767px) {
+  /* iOS Safari zooms the viewport when focusing an input below 16px
+     and never zooms back out. Applies to the real controls only. */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* WCAG 2.2 target size: interactive controls need a usable tap
+     area. Several chips and icon buttons were under 30px tall. */
+  button,
+  [role='button'],
+  a.sg-tap {
+    min-height: 44px;
+  }
+
+  /* Tables and diagnostic grids scroll inside their own container
+     rather than widening the page. */
+  .diag-table-grid,
+  .sg-scan-history,
+  .sg-kpi-row {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Respect the notch / home indicator on modern phones. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

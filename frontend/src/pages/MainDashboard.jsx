@@ -23,6 +23,7 @@ import ActionSteps from '../components/results/ActionSteps'
 import SafetyAdvice from '../components/results/SafetyAdvice'
 import DivergenceWarning from '../components/results/DivergenceWarning'
 import InjectionWarning from '../components/results/InjectionWarning'
+import ExtractedIntelPanel from '../components/results/ExtractedIntelPanel'
 import NeuralBackground from '../components/ui/flow-field-background'
 import { useAnalysisStore } from '../hooks/useAnalysis'
 import { useRateLimitStore } from '../hooks/useRateLimit'
@@ -158,6 +159,9 @@ export default function MainDashboard() {
                 {result.divergence_flag       && <DivergenceWarning />}
                 {/* Adversarial-content notice: the caller tried to steer the AI layer. */}
                 <InjectionWarning injection={result.prompt_injection} />
+                {/* Independent evidence: identifiers from the call, checked
+                    against the scam database. */}
+                <ExtractedIntelPanel intel={result.extracted_intel} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
                   <VerdictCard verdict={result.verdict} confidence={result.confidence} source={result.source} />

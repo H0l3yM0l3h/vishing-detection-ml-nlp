@@ -52,6 +52,7 @@ from inference import (
 )
 from hybrid_engine import run_hybrid_analysis, VERDICT_SUSPICIOUS
 from agents.prompt_guard import detect_injection
+from intel_extract import extract_identifiers, has_identifiers
 from rag_module import ensure_scam_library
 from llm_config import check_groq_available, check_ollama_available, _get_groq_client
 from auth import (
@@ -391,6 +392,93 @@ def _get_analysis_lock(username: str) -> asyncio.Lock:
     return lock
 
 
+async def _cross_check_identifiers(transcript: str) -> dict:
+    """Extract identifiers from a transcript and check them against PenipuMY.
+
+    Returns the extraction plus any database matches. Never raises: threat
+    intelligence is corroborating evidence, so an upstream outage must not
+    fail the analysis that the user actually asked for.
+    """
+    import penipu_client
+
+    extracted = extract_identifiers(transcript)
+    result = {
+        **extracted,
+        "checked": False,
+        "matches": [],
+        "summary": "",
+    }
+
+    if not has_identifiers(extracted) or not penipu_client.is_configured():
+        return result
+
+    # Cap the fan-out: a transcript quoting many numbers must not turn one
+    # analysis into a dozen upstream calls.
+    targets = [("phone", p["normalized"]) for p in extracted["phones"][:3]]
+    targets += [("bank", a["normalized"]) for a in extracted["accounts"][:3]]
+    if not targets:
+        return result
+
+    async def _lookup(kind: str, value: str):
+        try:
+            if kind == "phone":
+                return kind, value, await penipu_client.lookup_phone(value)
+            return kind, value, await penipu_client.lookup_bank(value)
+        except Exception:
+            return kind, value, None
+
+    try:
+        responses = await asyncio.wait_for(
+            asyncio.gather(*(_lookup(k, v) for k, v in targets)),
+            timeout=12.0,
+        )
+    except (asyncio.TimeoutError, Exception) as exc:  # noqa: B014 - deliberate catch-all
+        log_event(logging.WARNING, "intel.crosscheck_failed", error=repr(exc)[:200])
+        return result
+
+    result["checked"] = True
+    for kind, value, payload in responses:
+        if not isinstance(payload, dict):
+            continue
+        # PenipuMY shapes vary by endpoint; treat any positive report count or
+        # explicit flag as a hit, and ignore everything else.
+        reports = (
+            payload.get("report_count")
+            or payload.get("total_reports")
+            or payload.get("reports")
+            or 0
+        )
+        flagged = bool(payload.get("found") or payload.get("is_scam") or payload.get("flagged"))
+        try:
+            reports = int(reports)
+        except (TypeError, ValueError):
+            reports = 0
+
+        if flagged or reports > 0:
+            result["matches"].append({
+                "type": kind,
+                "value": value,
+                "reports": reports,
+                "detail": str(payload.get("description") or payload.get("category") or "")[:160],
+            })
+
+    if result["matches"]:
+        total = sum(m["reports"] for m in result["matches"])
+        result["summary"] = (
+            f"{len(result['matches'])} identifier(s) from this call appear in the "
+            f"PenipuMY scam database"
+            + (f" with {total} report(s) against them." if total else ".")
+        )
+        log_event(
+            logging.WARNING,
+            "intel.known_scam_identifier",
+            matches=len(result["matches"]),
+            reports=total,
+        )
+
+    return result
+
+
 @app.post("/api/analyze")
 async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(get_current_user)):
     username = user["sub"]
@@ -445,6 +533,12 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
                 types=sorted({f["type"] for f in injection_findings}),
             )
 
+        # ── Identifier extraction + threat-intelligence cross-check ──
+        # Independent evidence: the words of a call can be innocent, but the
+        # account the caller wants money sent to either has fraud reports
+        # against it or it does not. See intel_extract.py.
+        extracted_intel = await _cross_check_identifiers(transcript)
+
         # ── Suspicious phrases ──
         phrases = detect_suspicious_phrases(transcript)
         highlighted = build_highlighted_transcript(transcript, phrases)
@@ -478,6 +572,7 @@ async def analyze(req: AnalyzeRequest, request: Request, user: dict = Depends(ge
             "ai_verdict": None,
             "ai_risk_level": None,
             "ai_alignment": None,
+            "extracted_intel": extracted_intel,
             "prompt_injection": {
                 "detected": bool(injection_findings),
                 "count": len(injection_findings),
